@@ -9,6 +9,18 @@
   min-width: 0;
 }
 
+.listsTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+
+.listsTitle span {
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
 .anilist {
   display: flex;
   flex-direction: column;

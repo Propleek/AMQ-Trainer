@@ -5,6 +5,8 @@ import type { Box, SongProgress } from './progress';
 import { dirtyIds, getAllProgress, markClean, mergeProgress, replaceAllProgress } from './progress';
 import type { TestResult } from './testHistory';
 import { loadAll as loadAllTests, replaceAll as replaceAllTests } from './testHistory';
+import type { SavedList } from './savedLists';
+import { dirtyListIds, getAllLists, markListsClean, mergeLists, replaceAllLists } from './savedLists';
 
 /** Lignes par requête (lecture paginée et envoi groupé). */
 const PAGE_SIZE = 1000;
@@ -16,7 +18,7 @@ export interface AccountState {
   available: boolean;
   user: { name: string; avatarUrl: string | null } | null;
   status: SyncStatus;
-  /** Incrémenté quand la fusion modifie la progression locale : les écrans recalculent leurs chiffres. */
+  /** Incrémenté quand la fusion modifie les données locales : les écrans recalculent leurs chiffres. */
   revision: number;
 }
 
@@ -108,6 +110,47 @@ async function upsertProgress(ids: number[]): Promise<void> {
   }
 }
 
+interface ListRow {
+  id: string;
+  name: string;
+  entries: SavedList['entries'];
+  created_at: string;
+  updated_at: string;
+  deleted: boolean;
+}
+
+const fromListRow = (r: ListRow): SavedList => ({
+  id: r.id,
+  name: r.name,
+  entries: r.entries,
+  createdAt: new Date(r.created_at).toISOString(),
+  updatedAt: new Date(r.updated_at).toISOString(),
+  ...(r.deleted ? { deleted: true } : {}),
+});
+
+async function upsertLists(ids: string[]): Promise<void> {
+  const wanted = new Set(ids);
+  const rows: ListRow[] = getAllLists()
+    .filter((l) => wanted.has(l.id))
+    .map((l) => ({ id: l.id, name: l.name, entries: l.entries, created_at: l.createdAt, updated_at: l.updatedAt, deleted: !!l.deleted }));
+  if (!rows.length) return;
+  const { error } = await supabase!.from('saved_lists').upsert(rows, { onConflict: 'user_id,id' });
+  if (error) throw error;
+}
+
+/** Synchronise les listes ; renvoie `true` si les listes locales ont changé. */
+async function syncLists(): Promise<boolean> {
+  const dirty = dirtyListIds();
+  const remote = (await selectAll<ListRow>('saved_lists', 'id,name,entries,created_at,updated_at,deleted', 'id')).map(fromListRow);
+  const { merged, toPush, localChanged } = mergeLists(getAllLists(), remote);
+  if (localChanged) replaceAllLists(merged);
+  // Seules les listes dont la version locale l'emporte partent : une liste « à envoyer » plus
+  // ancienne que celle du compte n'écrase pas cette dernière.
+  await upsertLists(toPush);
+  markListsClean(dirty);
+  return localChanged;
+}
+
 async function upsertTests(tests: TestResult[]): Promise<void> {
   const rows: TestRow[] = tests.map((t) => ({ list_name: t.listName, played_at: t.playedAt, total: t.total, correct: t.correct }));
   for (let i = 0; i < rows.length; i += PAGE_SIZE) {
@@ -172,7 +215,9 @@ function fullSync(): Promise<void> {
       const missingLocally = remoteTests.filter((t) => !localKeys.has(testKey(t)));
       if (missingLocally.length) replaceAllTests([...localTests, ...missingLocally]);
 
-      setState({ status: 'synced', revision: state.revision + (localChanged || missingLocally.length ? 1 : 0) });
+      const listsChanged = await syncLists();
+
+      setState({ status: 'synced', revision: state.revision + (localChanged || missingLocally.length || listsChanged ? 1 : 0) });
     } catch (e) {
       console.error('Synchronisation impossible', e);
       setState({ status: 'error' });
@@ -181,8 +226,9 @@ function fullSync(): Promise<void> {
 }
 
 /**
- * Envoie les chansons modifiées et les Tests depuis la dernière synchronisation
- * (fin de partie, abandon). Sans compte, ne fait rien : tout reste dans le navigateur.
+ * Envoie les chansons, Tests et listes modifiés depuis la dernière synchronisation
+ * (fin de partie, abandon, enregistrement ou suppression d'une liste).
+ * Sans compte, ne fait rien : tout reste dans le navigateur.
  */
 export function pushChanges(): Promise<void> {
   if (!supabase || !state.user) return Promise.resolve();
@@ -193,6 +239,9 @@ export function pushChanges(): Promise<void> {
       await upsertProgress(ids);
       markClean(ids);
       await upsertTests(loadAllTests());
+      const lists = dirtyListIds();
+      await upsertLists(lists);
+      markListsClean(lists);
       setState({ status: 'synced' });
     } catch (e) {
       console.error('Synchronisation impossible', e);

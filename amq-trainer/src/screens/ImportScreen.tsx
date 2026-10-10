@@ -4,6 +4,7 @@ import type { MalList } from '../types';
 import { countByStatus, parseMalXml, XmlParseError } from '../lib/parseMalXml';
 import { AnilistUserError, fetchAnilistList } from '../lib/anilistUser';
 import { deleteList, loadSavedLists } from '../lib/savedLists';
+import { pushChanges, useAccount } from '../lib/sync';
 import type { SavedList } from '../lib/savedLists';
 import styles from './ImportScreen.module.css';
 
@@ -34,6 +35,7 @@ export default function ImportScreen({ list, onLoad, onEditList, onNext }: Props
   const [anilistUser, setAnilistUser] = useState(loadAnilistUser);
   const [fetching, setFetching] = useState(false);
   const [savedLists, setSavedLists] = useState(loadSavedLists);
+  const account = useAccount();
 
   async function handleAnilist(e: FormEvent) {
     e.preventDefault();
@@ -79,6 +81,7 @@ export default function ImportScreen({ list, onLoad, onEditList, onNext }: Props
     if (!window.confirm(`Supprimer la liste « ${saved.name} » ?`)) return;
     try {
       deleteList(saved.id);
+      void pushChanges();
     } catch (e) {
       setError(`Suppression impossible : ${String(e)}`);
     }
@@ -146,7 +149,10 @@ export default function ImportScreen({ list, onLoad, onEditList, onNext }: Props
         </div>
 
         <div className={styles.column}>
-          <h2>Mes listes</h2>
+          <h2 className={styles.listsTitle}>
+            Mes listes
+            {account.user && <span className="muted">synchronisées avec ton compte</span>}
+          </h2>
           <div className="panel">
             {savedLists.length === 0 ? (
               <p className={`muted ${styles.empty}`}>Aucune liste pour l'instant. Composez-en une en cherchant des animés sur AniList.</p>

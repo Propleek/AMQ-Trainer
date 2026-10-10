@@ -73,6 +73,8 @@ export default function App() {
       >
         {screen.name === 'import' && (
           <ImportScreen
+            // Remonté quand la synchronisation apporte des listes d'un autre appareil.
+            key={account.revision}
             list={list}
             onLoad={selectList}
             onEditList={(saved) => {

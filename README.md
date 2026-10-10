@@ -17,7 +17,7 @@ Aucune installation, et le compte est facultatif : sans compte, tout se passe da
 - **Progression conservée** : chaque musique est *jamais vue*, *à réviser*, *à revoir* ou *connue* ; une partie abandonnée garde les réponses déjà données.
 - **Répétition espacée** : chaque bonne réponse fait monter la musique d'une boîte (1 à 5) et repousse sa prochaine révision (1, 3, 7 puis 21 jours) ; une erreur la renvoie en boîte 1.
 - **Statistiques** par liste : états des musiques, répartition par boîte, évolution des scores en Test, musiques les plus ratées.
-- **Compte Discord (facultatif)** : ta progression et tes scores de Test sont synchronisés entre tes appareils.
+- **Compte Discord (facultatif)** : ta progression, tes scores de Test et tes listes composées à la main sont synchronisés entre tes appareils.
 - **Réglages** : statuts de la liste, types de musiques (OP / ED / insert), nombre de musiques, durée de réponse, difficulté, point de départ de l'extrait.
 - **Résultats** : score, réécoute de chaque musique, « Rejouer les ratés » et « Paquet suivant ».
 
@@ -37,7 +37,7 @@ Aucune installation, et le compte est facultatif : sans compte, tout se passe da
 
 Sans compte, ta liste et ta progression restent **dans ton navigateur**. Seuls ton pseudo AniList (pour l'import) et les identifiants et titres des animés sont transmis à AniList et AnisongDB.
 
-Avec un compte, la connexion passe par Discord via [Supabase](https://supabase.com) : le site reçoit ton nom et ton avatar Discord, et enregistre ta progression (identifiants des musiques, compteurs, dates de révision) et tes scores de Test. Tes listes d'animés restent dans le navigateur.
+Avec un compte, la connexion passe par Discord via [Supabase](https://supabase.com) : le site reçoit ton nom et ton avatar Discord, et enregistre ta progression (identifiants des musiques, compteurs, dates de révision), tes scores de Test et tes listes composées à la main (nom et animés).
 
 ## Limites connues
 

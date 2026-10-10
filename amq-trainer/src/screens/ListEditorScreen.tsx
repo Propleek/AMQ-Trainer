@@ -3,6 +3,7 @@ import type { AnimeEntry } from '../types';
 import { FORMAT_LABELS, searchAnime } from '../lib/anilistSearch';
 import type { SearchResult } from '../lib/anilistSearch';
 import { newListId, saveList } from '../lib/savedLists';
+import { pushChanges } from '../lib/sync';
 import type { SavedList } from '../lib/savedLists';
 import styles from './ListEditorScreen.module.css';
 
@@ -92,6 +93,7 @@ export default function ListEditorScreen({ initial, onClose }: Props) {
         createdAt: initial?.createdAt ?? now,
         updatedAt: now,
       });
+      void pushChanges();
       onClose();
     } catch (e) {
       setError(`Enregistrement impossible (stockage du navigateur indisponible ou plein) : ${String(e)}`);
