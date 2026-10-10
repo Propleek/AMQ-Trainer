@@ -4,3 +4,7 @@
 # Documents de suivi du développement (usage local)
 ROADMAP.md
 progress.md
+
+# Identifiants personnels (ne jamais versionner)
+pass.txt
+.env

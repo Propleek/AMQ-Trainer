@@ -93,15 +93,11 @@ export function nextProgress(previous: SongProgress | undefined, correct: boolea
 }
 
 /**
- * Enregistre une réponse (boîte de Leitner et date de révision, voir `nextProgress`).
- * Écrit aussitôt, pour qu'une partie abandonnée garde les réponses déjà données.
- * Si le stockage est plein, le cache d'API est vidé (il se reconstruit) avant de réessayer.
- * Renvoie `false` si la progression n'a pas pu être enregistrée.
+ * Écrit la progression dans le localStorage. Si le stockage est plein, le cache d'API est vidé
+ * (il se reconstruit) avant de réessayer. Renvoie `false` si l'écriture a échoué.
  */
-export function recordAnswer(annSongId: number, correct: boolean): boolean {
-  const all = getAll();
-  all[annSongId] = nextProgress(all[annSongId], correct);
-  const json = JSON.stringify(all);
+function persist(): boolean {
+  const json = JSON.stringify(getAll());
   try {
     localStorage.setItem(STORAGE_KEY, json);
     return true;
@@ -115,4 +111,67 @@ export function recordAnswer(annSongId: number, correct: boolean): boolean {
       return false;
     }
   }
+}
+
+/**
+ * Enregistre une réponse (boîte de Leitner et date de révision, voir `nextProgress`).
+ * Écrit aussitôt, pour qu'une partie abandonnée garde les réponses déjà données.
+ * Renvoie `false` si la progression n'a pas pu être enregistrée.
+ */
+export function recordAnswer(annSongId: number, correct: boolean): boolean {
+  getAll()[annSongId] = nextProgress(getAll()[annSongId], correct);
+  markDirty([annSongId]);
+  return persist();
+}
+
+/* ---------- Synchronisation avec le compte (voir sync.ts) ---------- */
+
+const DIRTY_KEY = 'amq-trainer:progress-dirty:v1';
+
+/** Chansons modifiées depuis la dernière synchronisation (gardées si l'onglet est fermé ou hors ligne). */
+export function dirtyIds(): number[] {
+  try {
+    return JSON.parse(localStorage.getItem(DIRTY_KEY) ?? '[]') as number[];
+  } catch {
+    return [];
+  }
+}
+
+function writeDirty(ids: Iterable<number>): void {
+  try {
+    localStorage.setItem(DIRTY_KEY, JSON.stringify([...new Set(ids)]));
+  } catch {
+    // Au pire, ces chansons seront renvoyées lors de la prochaine synchronisation complète.
+  }
+}
+
+function markDirty(ids: number[]): void {
+  writeDirty([...dirtyIds(), ...ids]);
+}
+
+/** Retire les chansons envoyées de la liste à synchroniser. */
+export function markClean(ids: number[]): void {
+  const sent = new Set(ids);
+  writeDirty(dirtyIds().filter((id) => !sent.has(id)));
+}
+
+export function getAllProgress(): Readonly<Record<number, SongProgress>> {
+  return getAll();
+}
+
+/**
+ * Fusion idempotente d'une progression locale et distante : l'état (boîte, date, ratée) vient
+ * du passage le plus récent ; les compteurs prennent le maximum, pour qu'une même progression
+ * synchronisée plusieurs fois ne soit jamais comptée deux fois.
+ */
+export function mergeProgress(local: SongProgress | undefined, remote: SongProgress | undefined): SongProgress | undefined {
+  if (!local || !remote) return local ?? remote;
+  const latest = Date.parse(remote.lastSeen) > Date.parse(local.lastSeen) ? remote : local;
+  return { ...latest, seen: Math.max(local.seen, remote.seen), correct: Math.max(local.correct, remote.correct) };
+}
+
+/** Remplace la progression locale par la version fusionnée avec le compte. */
+export function replaceAllProgress(merged: Record<number, SongProgress>): void {
+  progress = merged;
+  persist();
 }

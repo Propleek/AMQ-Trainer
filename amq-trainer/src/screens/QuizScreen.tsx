@@ -7,6 +7,7 @@ import { buildAutocompleteNames, fetchAnimeNames } from '../lib/animeNames';
 import { disposeTrack, loadVolume, prepareTrack, saveVolume } from '../lib/quizAudio';
 import { recordAnswer } from '../lib/progress';
 import { addTestResult } from '../lib/testHistory';
+import { pushChanges } from '../lib/sync';
 import { MODE_LABELS } from '../lib/quizSettings';
 import type { QuizMode } from '../lib/quizSettings';
 import type { Track } from '../lib/quizAudio';
@@ -167,6 +168,11 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
     setIndex(index + 1);
   }, [index, songs.length, settings.mode, answers, listName]);
 
+  // Fin de partie : envoi des réponses au compte (sans compte, rien n'est envoyé).
+  useEffect(() => {
+    if (phase === 'done') void pushChanges();
+  }, [phase]);
+
   // Révélation : Entrée passe à la musique suivante.
   useEffect(() => {
     if (phase !== 'reveal') return;
@@ -198,6 +204,7 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
 
   function quit() {
     if (phase !== 'done' && answers.length > 0 && !window.confirm('Quitter la partie en cours ?')) return;
+    void pushChanges();
     onQuit();
   }
 

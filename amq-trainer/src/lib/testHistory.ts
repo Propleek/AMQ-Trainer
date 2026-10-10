@@ -10,7 +10,8 @@ export interface TestResult {
   correct: number;
 }
 
-function loadAll(): TestResult[] {
+/** Tous les Tests, toutes listes confondues. */
+export function loadAll(): TestResult[] {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as TestResult[];
   } catch {
@@ -30,5 +31,14 @@ export function addTestResult(result: TestResult): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...loadAll(), result]));
   } catch {
     // Historique facultatif : la progression des chansons, elle, est déjà enregistrée.
+  }
+}
+
+/** Remplace l'historique local par la version fusionnée avec le compte. */
+export function replaceAll(results: TestResult[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
+  } catch {
+    // Historique facultatif.
   }
 }

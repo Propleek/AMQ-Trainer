@@ -7,6 +7,8 @@ import ListEditorScreen from './screens/ListEditorScreen';
 import SetupScreen from './screens/SetupScreen';
 import type { QuizStart } from './screens/SetupScreen';
 import QuizScreen from './screens/QuizScreen';
+import AccountBar from './components/AccountBar';
+import { useAccount } from './lib/sync';
 import StatsScreen from './screens/StatsScreen';
 import { drawForMode, filterSongs, modePool, shuffle } from './lib/quizSettings';
 
@@ -19,6 +21,7 @@ type Screen =
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'import' });
+  const account = useAccount();
   const [list, setList] = useState<MalList | null>(null);
   /** Chansons de la liste sélectionnée, gardées pour ne pas les recharger au retour sur la configuration. */
   const [loaded, setLoaded] = useState<{ list: MalList; result: LoadResult } | null>(null);
@@ -36,6 +39,7 @@ export default function App() {
     <main className="app">
       <header className="app-header">
         <h1>AMQ Trainer</h1>
+        <AccountBar />
       </header>
       {screen.name === 'import' && (
         <ImportScreen
@@ -59,6 +63,8 @@ export default function App() {
       )}
       {screen.name === 'setup' && list && (
         <SetupScreen
+          // Remonté quand la synchronisation modifie la progression : les compteurs sont recalculés.
+          key={account.revision}
           list={list}
           loaded={loaded?.list === list ? loaded.result : null}
           onLoaded={handleLoaded}
@@ -68,7 +74,7 @@ export default function App() {
         />
       )}
       {screen.name === 'stats' && loaded && (
-        <StatsScreen listName={loaded.list.userName} songs={loaded.result.songs} onBack={() => setScreen({ name: 'setup' })} />
+        <StatsScreen key={account.revision} listName={loaded.list.userName} songs={loaded.result.songs} onBack={() => setScreen({ name: 'setup' })} />
       )}
       {screen.name === 'quiz' && loaded && (
         <QuizScreen

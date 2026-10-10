@@ -1,0 +1,22 @@
+# Un projet Supabase gratuit se met en pause après une semaine sans activité :
+# une lecture légère tous les 3 jours le garde actif. Utilise les mêmes variables que deploy.yml.
+name: Maintien de Supabase
+
+on:
+  schedule:
+    - cron: '17 6 */3 * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    if: ${{ vars.VITE_SUPABASE_URL != '' }}
+    steps:
+      - name: Requête sur la base
+        env:
+          URL: ${{ vars.VITE_SUPABASE_URL }}
+          KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        # Sans session, la RLS renvoie une liste vide : la requête atteint quand même la base.
+        run: curl --fail --silent --show-error "$URL/rest/v1/test_results?select=played_at&limit=1" -H "apikey: $KEY"

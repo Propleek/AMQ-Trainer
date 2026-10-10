@@ -36,6 +36,11 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+        # Comptes Discord / Supabase : variables du dépôt (Settings → Secrets and variables → Actions → Variables).
+        # Valeurs publiques par conception ; sans elles, le site est compilé sans comptes.
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
       - uses: actions/upload-pages-artifact@v4
         with:
