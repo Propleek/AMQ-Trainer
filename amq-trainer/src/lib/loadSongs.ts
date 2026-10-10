@@ -14,6 +14,8 @@ export interface LoadResult {
   songs: Song[];
   /** Couverture AniList par ANN ID, pour l'écran de révélation. */
   covers: Map<number, string>;
+  /** Statut de l'animé dans la liste, par `annSongId` (filtre par statut). */
+  statusOf: Map<number, string>;
   /** Titres des animés sans chanson trouvée. */
   withoutSongs: string[];
 }
@@ -34,6 +36,7 @@ export async function loadSongs(
 
   const songs = new Map<number, Song>();
   const covers = new Map<number, string>();
+  const statusOf = new Map<number, string>();
   const withoutSongs: string[] = [];
   for (const entry of entries) {
     const found = songsByKey.get(animeKey(entry)) ?? [];
@@ -42,8 +45,9 @@ export async function loadSongs(
     const cover = infos.get(animeKey(entry))?.imageUrl;
     for (const song of found) {
       songs.set(song.annSongId, song);
+      statusOf.set(song.annSongId, entry.status);
       if (cover) covers.set(song.annId, cover);
     }
   }
-  return { songs: [...songs.values()], covers, withoutSongs };
+  return { songs: [...songs.values()], covers, statusOf, withoutSongs };
 }
