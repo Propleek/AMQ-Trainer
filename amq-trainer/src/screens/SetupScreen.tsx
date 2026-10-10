@@ -4,8 +4,10 @@ import { SONG_KIND_LABELS } from '../types';
 import { countByStatus } from '../lib/parseMalXml';
 import { loadSongs } from '../lib/loadSongs';
 import type { LoadProgress, LoadResult } from '../lib/loadSongs';
-import { drawSongs, filterSongs, GUESS_TIME_RANGE, loadSettings, saveSettings } from '../lib/quizSettings';
-import type { QuizSettings, SamplePoint } from '../lib/quizSettings';
+import { DEFAULT_SETTINGS, drawSongs, filterSongs, GUESS_TIME_RANGE, loadSettings, MODE_LABELS, modePool, saveSettings } from '../lib/quizSettings';
+import type { QuizMode, QuizSettings, SamplePoint } from '../lib/quizSettings';
+import { SONG_STATE_LABELS, songState } from '../lib/progress';
+import type { SongState } from '../lib/progress';
 import styles from './SetupScreen.module.css';
 
 const KINDS: SongKind[] = ['opening', 'ending', 'insert'];
@@ -16,6 +18,14 @@ const STEP_LABELS: Record<LoadProgress['step'], string> = {
   anime: 'Informations AniList',
   songs: 'Recherche des musiques',
 };
+
+const MODES: { value: QuizMode; description: string; empty: string }[] = [
+  { value: 'discovery', description: 'Musiques jamais vues, par paquets', empty: 'Toute la liste a été découverte' },
+  { value: 'review', description: 'Musiques ratées, jusqu’à les connaître', empty: 'Rien à réviser' },
+  { value: 'test', description: 'Partie comme sur AMQ, pour mesurer son niveau', empty: 'Aucune musique déjà vue' },
+];
+
+const STATES: SongState[] = ['unseen', 'review', 'known'];
 
 const SAMPLE_POINTS: { value: SamplePoint; label: string }[] = [
   { value: 'random', label: 'Aléatoire (comme AMQ)' },
@@ -59,7 +69,20 @@ export default function SetupScreen({ list, loaded, onLoaded, onBack, onStart }:
   }, [list, loaded, onLoaded, attempt]);
 
   const statusCounts = useMemo(() => countByStatus(list.entries), [list]);
-  const pool = useMemo(() => (loaded ? filterSongs(loaded.songs, loaded.statusOf, settings) : []), [loaded, settings]);
+  /** Chansons qui correspondent aux filtres, tous états confondus. */
+  const filtered = useMemo(() => (loaded ? filterSongs(loaded.songs, loaded.statusOf, settings) : []), [loaded, settings]);
+  const stateCounts = useMemo(() => {
+    const counts: Record<SongState, number> = { unseen: 0, review: 0, known: 0 };
+    for (const song of filtered) counts[songState(song.annSongId)]++;
+    return counts;
+  }, [filtered]);
+  const modeCounts: Record<QuizMode, number> = {
+    discovery: stateCounts.unseen,
+    review: stateCounts.review,
+    test: settings.testIncludesUnseen ? filtered.length : stateCounts.review + stateCounts.known,
+  };
+  /** Pool du mode choisi : la partie y est tirée. */
+  const pool = useMemo(() => modePool(filtered, settings), [filtered, settings]);
   const kindCounts = useMemo(() => {
     const counts: Record<SongKind, number> = { opening: 0, ending: 0, insert: 0 };
     for (const song of loaded?.songs ?? []) counts[song.kind]++;
@@ -114,8 +137,13 @@ export default function SetupScreen({ list, loaded, onLoaded, onBack, onStart }:
     );
   }
 
-  const playCount = Math.min(settings.count ?? pool.length, pool.length);
+  const count = settings.counts[settings.mode];
+  const playCount = Math.min(count ?? pool.length, pool.length);
   const [minDifficulty, maxDifficulty] = settings.difficulty;
+
+  function setCount(value: number | null) {
+    update({ counts: { ...settings.counts, [settings.mode]: value } });
+  }
 
   return (
     <section>
@@ -123,6 +151,50 @@ export default function SetupScreen({ list, loaded, onLoaded, onBack, onStart }:
       <p className="muted">
         {loaded.songs.length} musiques trouvées pour {list.entries.length} animés.
       </p>
+
+      <div className={`panel ${styles.group}`}>
+        <div className={styles.stateBar} aria-hidden="true">
+          {STATES.map((state) =>
+            stateCounts[state] ? (
+              <div key={state} className={styles[state]} style={{ flexGrow: stateCounts[state] }} />
+            ) : null,
+          )}
+        </div>
+        <ul className={styles.stateLegend}>
+          {STATES.map((state) => (
+            <li key={state}>
+              <span className={`${styles.dot} ${styles[state]}`} />
+              {SONG_STATE_LABELS[state]} : <strong>{stateCounts[state]}</strong>
+            </li>
+          ))}
+          <li className="muted">sur {filtered.length} musiques sélectionnées</li>
+        </ul>
+      </div>
+
+      <fieldset className={`panel ${styles.group}`}>
+        <legend>Mode</legend>
+        <div className={styles.modes}>
+          {MODES.map((mode) => (
+            <label key={mode.value} className={`${styles.mode} ${settings.mode === mode.value ? styles.active : ''}`}>
+              <input type="radio" name="mode" checked={settings.mode === mode.value} onChange={() => update({ mode: mode.value })} />
+              <strong>
+                {MODE_LABELS[mode.value]} <span className={styles.modeCount}>{modeCounts[mode.value]}</span>
+              </strong>
+              <span>{modeCounts[mode.value] ? mode.description : mode.empty}</span>
+            </label>
+          ))}
+        </div>
+        {settings.mode === 'test' && (
+          <label className={`${styles.option} ${styles.modeOption}`}>
+            <input
+              type="checkbox"
+              checked={settings.testIncludesUnseen}
+              onChange={(e) => update({ testIncludesUnseen: e.target.checked })}
+            />
+            Inclure les musiques jamais vues (toute la liste)
+          </label>
+        )}
+      </fieldset>
 
       {statusCounts.length > 1 && (
         <fieldset className={`panel ${styles.group}`}>
@@ -161,12 +233,16 @@ export default function SetupScreen({ list, loaded, onLoaded, onBack, onStart }:
                 aria-label="Nombre de musiques"
                 min={1}
                 max={Math.max(pool.length, 1)}
-                value={settings.count ?? pool.length}
-                disabled={settings.count === null}
-                onChange={(e) => update({ count: Math.max(1, Math.round(Number(e.target.value)) || 1) })}
+                value={count ?? pool.length}
+                disabled={count === null}
+                onChange={(e) => setCount(Math.max(1, Math.round(Number(e.target.value)) || 1))}
               />
               <label className={styles.option}>
-                <input type="checkbox" checked={settings.count === null} onChange={(e) => update({ count: e.target.checked ? null : 20 })} />
+                <input
+                  type="checkbox"
+                  checked={count === null}
+                  onChange={(e) => setCount(e.target.checked ? null : (DEFAULT_SETTINGS.counts[settings.mode] ?? 20))}
+                />
                 Toutes
               </label>
             </div>
@@ -229,7 +305,8 @@ export default function SetupScreen({ list, loaded, onLoaded, onBack, onStart }:
       </fieldset>
 
       <p>
-        <strong>{pool.length}</strong> musique{pool.length > 1 ? 's' : ''} correspond{pool.length > 1 ? 'ent' : ''} à ces réglages
+        {MODE_LABELS[settings.mode]} : <strong>{pool.length}</strong> musique{pool.length > 1 ? 's' : ''} disponible
+        {pool.length > 1 ? 's' : ''}
         {pool.length > 0 && (
           <>
             {' '}

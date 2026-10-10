@@ -1,4 +1,5 @@
-const PREFIX = 'amq-trainer:';
+/** Préfixe propre au cache : `clearCache` ne touche pas aux données de l'utilisateur. */
+const PREFIX = 'amq-trainer:cache:';
 export const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_TTL_MS = 7 * DAY_MS;
 
@@ -22,6 +23,17 @@ export function cacheGet<T>(key: string): T | undefined {
     return record.value;
   } catch {
     return undefined;
+  }
+}
+
+/** Vide le cache (réponses d'API), pour libérer de la place dans le localStorage. */
+export function clearCache(): void {
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith(PREFIX)) localStorage.removeItem(key);
+    }
+  } catch {
+    // Stockage indisponible.
   }
 }
 

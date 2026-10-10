@@ -7,7 +7,7 @@ import ListEditorScreen from './screens/ListEditorScreen';
 import SetupScreen from './screens/SetupScreen';
 import type { QuizStart } from './screens/SetupScreen';
 import QuizScreen from './screens/QuizScreen';
-import { shuffle } from './lib/quizSettings';
+import { drawSongs, filterSongs, modePool, shuffle } from './lib/quizSettings';
 
 type Screen =
   | { name: 'import' }
@@ -72,7 +72,18 @@ export default function App() {
           listSongs={loaded.result.songs}
           covers={loaded.result.covers}
           onQuit={() => setScreen({ name: 'setup' })}
-          onReplay={(songs) => setScreen({ name: 'quiz', id: screen.id + 1, start: { ...screen.start, songs: shuffle(songs) } })}
+          onReplay={(songs, mode) =>
+            setScreen({ name: 'quiz', id: screen.id + 1, start: { settings: { ...screen.start.settings, mode }, songs: shuffle(songs) } })
+          }
+          getNextBatch={
+            screen.start.settings.mode === 'discovery'
+              ? () => {
+                  const { settings } = screen.start;
+                  const pool = modePool(filterSongs(loaded.result.songs, loaded.result.statusOf, settings), settings);
+                  return drawSongs(pool, settings.counts.discovery);
+                }
+              : null
+          }
         />
       )}
     </main>

@@ -5,6 +5,9 @@ import type { QuizStart } from './SetupScreen';
 import { isCorrect } from '../lib/answer';
 import { buildAutocompleteNames, fetchAnimeNames } from '../lib/animeNames';
 import { disposeTrack, loadVolume, prepareTrack, saveVolume } from '../lib/quizAudio';
+import { recordAnswer } from '../lib/progress';
+import { MODE_LABELS } from '../lib/quizSettings';
+import type { QuizMode } from '../lib/quizSettings';
 import type { Track } from '../lib/quizAudio';
 import AnswerInput from '../components/AnswerInput';
 import QuizResults from '../components/QuizResults';
@@ -32,11 +35,13 @@ interface Props {
   /** Couverture AniList par ANN ID. */
   covers: Map<number, string>;
   onQuit: () => void;
-  /** Relance une partie sur ces chansons (« Rejouer les ratés »). */
-  onReplay: (songs: Song[]) => void;
+  /** Relance une partie sur ces chansons, dans ce mode (« Rejouer les ratés », « Paquet suivant »). */
+  onReplay: (songs: Song[], mode: QuizMode) => void;
+  /** Mode Découverte : tire le paquet suivant de chansons jamais vues (lu à la fin de la partie). */
+  getNextBatch: (() => Song[]) | null;
 }
 
-export default function QuizScreen({ start, listSongs, covers, onQuit, onReplay }: Props) {
+export default function QuizScreen({ start, listSongs, covers, onQuit, onReplay, getNextBatch }: Props) {
   const { songs, settings } = start;
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('loading');
@@ -46,6 +51,7 @@ export default function QuizScreen({ start, listSongs, covers, onQuit, onReplay 
   const [now, setNow] = useState(0);
   const [volume, setVolume] = useState(loadVolume);
   const [names, setNames] = useState(() => buildAutocompleteNames([], listSongs));
+  const [saveFailed, setSaveFailed] = useState(false);
 
   const currentTrack = useRef<Track | null>(null);
   const nextTrack = useRef<Track | null>(null);
@@ -125,7 +131,9 @@ export default function QuizScreen({ start, listSongs, covers, onQuit, onReplay 
       if (answered.current) return;
       answered.current = true;
       const song = songs[index];
-      setAnswers((a) => [...a, { song, answer: answer.trim(), correct: isCorrect(answer, song), unavailable: false }]);
+      const correct = isCorrect(answer, song);
+      if (!recordAnswer(song.annSongId, correct)) setSaveFailed(true);
+      setAnswers((a) => [...a, { song, answer: answer.trim(), correct, unavailable: false }]);
       setPhase('reveal');
     },
     [songs, index],
@@ -184,7 +192,16 @@ export default function QuizScreen({ start, listSongs, covers, onQuit, onReplay 
   }
 
   if (phase === 'done') {
-    return <QuizResults answers={answers} onReplay={onReplay} onQuit={onQuit} />;
+    return (
+      <QuizResults
+        mode={settings.mode}
+        answers={answers}
+        saveFailed={saveFailed}
+        onReplay={onReplay}
+        getNextBatch={getNextBatch}
+        onQuit={onQuit}
+      />
+    );
   }
 
   const song = songs[index];
@@ -196,7 +213,9 @@ export default function QuizScreen({ start, listSongs, covers, onQuit, onReplay 
 
   return (
     <section className={styles.quiz}>
+      {saveFailed && <p className="error">Stockage du navigateur indisponible : la progression de cette partie ne sera pas conservée.</p>}
       <div className={styles.topBar}>
+        <span className={styles.mode}>{MODE_LABELS[settings.mode]}</span>
         <span>
           Musique <strong>{index + 1}</strong> / {songs.length}
         </span>
