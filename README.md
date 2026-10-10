@@ -2,8 +2,7 @@
 
 Entraîne-toi pour [Anime Music Quiz](https://animemusicquiz.com) sur **ta propre liste d'animés** : le site te fait deviner les openings, endings et insert songs comme sur AMQ, retient ce que tu as raté et te le fait réviser jusqu'à ce que tu le connaisses, comme avec des flashcards.
 
-**👉 Ouvrir le site** : `https://<utilisateur>.github.io/<dépôt>/` *(lien à compléter après le premier déploiement)*
-
+**👉 Ouvrir le site** : `https://propleek.github.io/AMQ-Trainer/` 
 Aucune installation, et le compte est facultatif : sans compte, tout se passe dans le navigateur ; avec Discord, ta progression te suit sur tous tes appareils.
 
 ## Fonctionnalités
