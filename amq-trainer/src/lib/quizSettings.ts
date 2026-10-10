@@ -70,14 +70,15 @@ const isFullRange = ([min, max]: [number, number]) => min <= 0 && max >= 100;
  * Chansons qui correspondent aux réglages (statut de l'animé, type, difficulté), tous états confondus.
  * Une chanson sans difficulté connue n'est gardée que si l'intervalle n'est pas restreint.
  */
-export function filterSongs(songs: Song[], statusOf: Map<number, string>, settings: QuizSettings): Song[] {
+export function filterSongs(songs: Song[], statusOf: Map<number, string[]>, settings: QuizSettings): Song[] {
   const excluded = new Set(settings.excludedStatuses);
   const kinds = new Set(settings.kinds);
   const [min, max] = settings.difficulty;
   const anyDifficulty = isFullRange(settings.difficulty);
   return songs.filter((song) => {
     if (!kinds.has(song.kind)) return false;
-    if (excluded.has(statusOf.get(song.annSongId) ?? '')) return false;
+    // Musique partagée par plusieurs animés de la liste : exclue seulement si tous leurs statuts le sont.
+    if ((statusOf.get(song.annSongId) ?? ['']).every((status) => excluded.has(status))) return false;
     if (anyDifficulty) return true;
     return song.difficulty !== null && song.difficulty >= min && song.difficulty <= max;
   });

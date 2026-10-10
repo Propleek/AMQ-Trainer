@@ -22,13 +22,13 @@ const STEP_LABELS: Record<LoadProgress['step'], string> = {
 const MODES: { value: QuizMode; description: string; empty: string }[] = [
   { value: 'discovery', description: 'Musiques jamais vues, par paquets', empty: 'Toute la liste a été découverte' },
   { value: 'review', description: 'Ratées, puis celles dont la révision est due', empty: 'Rien à réviser' },
-  { value: 'test', description: 'Partie comme sur AMQ, pour mesurer son niveau', empty: 'Aucune musique déjà vue' },
+  { value: 'test', description: 'Mesurer son niveau sur les musiques déjà vues', empty: 'Aucune musique déjà vue' },
 ];
 
 const STATES: SongState[] = ['unseen', 'review', 'due', 'known'];
 
 const SAMPLE_POINTS: { value: SamplePoint; label: string }[] = [
-  { value: 'random', label: 'Aléatoire (comme AMQ)' },
+  { value: 'random', label: 'Aléatoire' },
   { value: 'start', label: 'Début du morceau' },
 ];
 

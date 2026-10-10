@@ -54,7 +54,7 @@ export default function StatsScreen({ listName, songs, onBack }: Props) {
         </button>
       </div>
       <p className="muted">
-        {seen} musique{seen > 1 ? 's' : ''} vue{seen > 1 ? 's' : ''} sur {songs.length}, tous types confondus.
+        {seen} musique{seen > 1 ? 's' : ''} vue{seen > 1 ? 's' : ''} sur {songs.length}.
       </p>
 
       <div className={styles.tiles}>
@@ -76,7 +76,6 @@ export default function StatsScreen({ listName, songs, onBack }: Props) {
       <div className={styles.cards}>
         <div className={`panel ${styles.card}`}>
           <h3>Musiques par boîte</h3>
-          <p className="muted">Boîte 1 = à réviser ; chaque bonne réponse fait monter d'une boîte et espace la révision suivante.</p>
           {seen ? (
             <ColumnChart
               data={BOXES.map((box) => ({

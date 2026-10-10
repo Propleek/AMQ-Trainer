@@ -37,10 +37,27 @@ export default function App() {
     setLoaded((current) => (list ? { list, result } : current));
   }, [list]);
 
+  /** Retour à l'accueil depuis n'importe quel écran ; la liste en cours reste sélectionnée. */
+  function goHome() {
+    if (screen.name === 'import') return;
+    if (screen.name === 'quiz' && !window.confirm('Quitter la partie en cours ? Les réponses déjà données sont enregistrées.')) return;
+    if (screen.name === 'list-editor' && !window.confirm("Quitter l'éditeur ? Les modifications non enregistrées seront perdues.")) return;
+    setScreen({ name: 'import' });
+  }
+
   return (
     <main className="app">
       <header className="app-header">
-        <h1>AMQ Trainer</h1>
+        <h1>
+          <a href="./" className="app-title" onClick={(e) => { e.preventDefault(); goHome(); }}>
+            AMQ Trainer
+          </a>
+        </h1>
+        {screen.name !== 'import' && screen.name !== 'list-editor' && (
+          <button type="button" className="app-home" onClick={goHome}>
+            ← Changer de liste
+          </button>
+        )}
         <AccountBar />
       </header>
       <ErrorBoundary

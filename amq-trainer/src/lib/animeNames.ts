@@ -18,14 +18,17 @@ export async function fetchAnimeNames(signal?: AbortSignal): Promise<string[]> {
 }
 
 /**
- * Propositions de l'autocomplétion : noms romaji de toute la base, complétés des noms anglais
- * et alternatifs des animés de la liste (absents de l'endpoint AnisongDB). Dédoublonnés, triés.
+ * Propositions de l'autocomplétion : noms romaji de toute la base, complétés des noms anglais et
+ * alternatifs des animés de la liste et de ceux qui partagent leurs musiques (absents de l'endpoint
+ * AnisongDB). Dédoublonnés, triés.
  */
 export function buildAutocompleteNames(baseNames: string[], songs: Iterable<Song>): string[] {
   const names = new Set(baseNames);
-  for (const { anime } of songs) {
-    for (const name of [anime.jpName, anime.enName, ...anime.altNames]) {
-      if (name.trim()) names.add(name);
+  for (const song of songs) {
+    for (const anime of [song.anime, ...song.sharedAnime]) {
+      for (const name of [anime.jpName, anime.enName, ...anime.altNames]) {
+        if (name.trim()) names.add(name);
+      }
     }
   }
   return [...names].sort((a, b) => a.localeCompare(b));

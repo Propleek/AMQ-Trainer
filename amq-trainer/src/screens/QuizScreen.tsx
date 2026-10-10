@@ -173,6 +173,9 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
     if (phase === 'done') void pushChanges();
   }, [phase]);
 
+  // Écran quitté en cours de partie (Quitter, accueil, changement de liste) : envoi aussi.
+  useEffect(() => () => void pushChanges(), []);
+
   // Révélation : Entrée passe à la musique suivante.
   useEffect(() => {
     if (phase !== 'reveal') return;
@@ -204,7 +207,6 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
 
   function quit() {
     if (phase !== 'done' && answers.length > 0 && !window.confirm('Quitter la partie en cours ?')) return;
-    void pushChanges();
     onQuit();
   }
 
@@ -286,6 +288,17 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
               </p>
               <h2 className={styles.animeName}>{song.anime.jpName}</h2>
               {song.anime.enName && song.anime.enName !== song.anime.jpName && <p className="muted">{song.anime.enName}</p>}
+              {song.sharedAnime.length > 0 && (
+                <p className={styles.shared}>
+                  Aussi accepté :{' '}
+                  {song.sharedAnime.map((shared, i) => (
+                    <span key={shared.annId}>
+                      {i > 0 && ', '}
+                      <strong>{shared.jpName}</strong> <span className="muted">({shared.songType})</span>
+                    </span>
+                  ))}
+                </p>
+              )}
               <p className={styles.songLine}>
                 <strong>{songTypeLabel(song)}</strong> · {song.name} — {song.artist}
               </p>

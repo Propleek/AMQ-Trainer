@@ -29,9 +29,23 @@ export function songTypeLabel(song: Pick<Song, 'kind' | 'number'>): string {
   return song.number ? `${SONG_TYPE_NAMES[song.kind]} ${song.number}` : SONG_TYPE_NAMES[song.kind];
 }
 
+/** Autre animé qui utilise la même musique (même `amqSongId`) : sa réponse est aussi acceptée. */
+export interface SharedAnime {
+  annId: number;
+  jpName: string;
+  enName: string;
+  altNames: string[];
+  /** Type de la chanson dans cet animé, ex. « Ending 1 » (pas forcément le même). */
+  songType: string;
+}
+
 /** Chanson jouable dans le quiz. */
 export interface Song {
   annSongId: number;
+  /** Identifiant AMQ de la musique, commun à tous les animés qui l'utilisent. */
+  amqSongId: number | null;
+  /** Autres animés qui utilisent cette musique : impossibles à distinguer, donc acceptés aussi. */
+  sharedAnime: SharedAnime[];
   /** Identifiant ANN de l'animé : la réponse doit désigner cet animé exact. */
   annId: number;
   kind: SongKind;

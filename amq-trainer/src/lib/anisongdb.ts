@@ -1,15 +1,16 @@
-import type { Song, SongKind } from '../types';
+import type { SharedAnime, Song, SongKind } from '../types';
 import { cacheGet, cacheSet, DAY_MS } from './cache';
 import { chunk, postJson, sleep } from './http';
 
 const MAL_IDS_URL = 'https://anisongdb.com/api/mal_ids_request';
 const SEARCH_URL = 'https://anisongdb.com/api/search_request';
+const AMQ_SONG_IDS_URL = 'https://anisongdb.com/api/amq_song_ids_request';
 const AUDIO_BASE_URL = 'https://naedist.animemusicquiz.com/';
 const MAX_IDS_PER_REQUEST = 500;
 // AnisongDB limite le débit (réponse 429 sans en-tête CORS, vue comme une erreur réseau).
 const DELAY_BETWEEN_SEARCHES_MS = 500;
 /** Version du cache : à incrémenter quand la logique de recherche ou la forme de `Song` change. */
-const CACHE_PREFIX = 'anisongdb:v1:';
+const CACHE_PREFIX = 'anisongdb:v2:';
 /** Un résultat vide est revérifié plus tôt : AnisongDB ajoute régulièrement des chansons. */
 const EMPTY_TTL_MS = DAY_MS;
 
@@ -24,6 +25,8 @@ const FILTERS = { song_types: ALL_KINDS, broadcasts: ['normal'] };
 interface SongEntry {
   annId: number;
   annSongId: number;
+  /** Identifiant AMQ de la musique : identique dans tous les animés qui l'utilisent. */
+  amqSongId: number | null;
   animeJPName: string;
   animeENName: string;
   animeAltName: string[] | null;
@@ -77,6 +80,8 @@ function toSong(entry: SongEntry): Song | null {
   if (!file || !kind) return null;
   return {
     annSongId: entry.annSongId,
+    amqSongId: entry.amqSongId ?? null,
+    sharedAnime: [],
     annId: entry.annId,
     kind,
     number: Number(/\d+/.exec(entry.songType)?.[0] ?? 0),
@@ -162,8 +167,39 @@ async function requestByMalIds(malIds: number[], signal?: AbortSignal): Promise<
 }
 
 /**
+ * Complète chaque chanson avec les autres animés qui utilisent la même musique (même `amqSongId`),
+ * tous types et diffusions confondus : ex. l'Opening 1 de Higurashi est aussi l'Opening 1 du
+ * Gaiden et l'Ending 1 de Gou. Une seule requête par lot de 500 musiques.
+ */
+async function attachSharedAnime(songs: Song[], signal?: AbortSignal): Promise<void> {
+  const ids = [...new Set(songs.map((s) => s.amqSongId).filter((id): id is number => id !== null))];
+  const byAmqId = new Map<number, SongEntry[]>();
+  for (const batch of chunk(ids, MAX_IDS_PER_REQUEST)) {
+    const entries = await postJson<SongEntry[]>(AMQ_SONG_IDS_URL, { amq_song_ids: batch }, signal);
+    for (const entry of entries) {
+      if (entry.amqSongId !== null) byAmqId.set(entry.amqSongId, [...(byAmqId.get(entry.amqSongId) ?? []), entry]);
+    }
+  }
+  for (const song of songs) {
+    const shared = new Map<number, SharedAnime>();
+    for (const entry of byAmqId.get(song.amqSongId ?? -1) ?? []) {
+      if (entry.annId === song.annId || shared.has(entry.annId)) continue;
+      shared.set(entry.annId, {
+        annId: entry.annId,
+        jpName: entry.animeJPName,
+        enName: entry.animeENName,
+        altNames: entry.animeAltName ?? [],
+        songType: entry.songType,
+      });
+    }
+    song.sharedAnime = [...shared.values()];
+  }
+}
+
+/**
  * Openings, endings et insert songs des animés, par clé d'animé.
- * 1. une requête groupée par ID MAL ; 2. repli par nom pour les animés restés sans chanson.
+ * 1. une requête groupée par ID MAL ; 2. repli par nom pour les animés restés sans chanson ;
+ * 3. animés qui partagent chaque musique (`attachSharedAnime`).
  * Cache : 7 jours si des chansons sont trouvées, 1 jour sinon.
  */
 export async function fetchSongs(
@@ -180,9 +216,11 @@ export async function fetchSongs(
   }
   onProgress(result.size, queries.length);
 
-  const store = (key: string, songs: Song[]) => {
+  /** Chansons trouvées pendant cet appel, mises en cache une fois complétées. */
+  const fresh = new Map<string, Song[]>();
+  const found = (key: string, songs: Song[]) => {
+    fresh.set(key, songs);
     result.set(key, songs);
-    cacheSet(CACHE_PREFIX + key, songs, songs.length ? undefined : EMPTY_TTL_MS);
   };
 
   // 1. Recherche groupée par ID MAL.
@@ -190,7 +228,7 @@ export async function fetchSongs(
     const byMal = await requestByMalIds(batch.map((q) => q.malId!), signal);
     for (const query of batch) {
       const songs = toSongs(byMal.get(query.malId!) ?? []);
-      if (songs.length) store(query.key, songs);
+      if (songs.length) found(query.key, songs);
     }
     onProgress(result.size, queries.length);
   }
@@ -198,8 +236,12 @@ export async function fetchSongs(
   // 2. Repli par nom, un animé à la fois : animés inconnus sous leur ID MAL ou sans ID MAL.
   for (const [i, query] of toFetch.filter((q) => !result.has(q.key)).entries()) {
     if (i > 0) await sleep(DELAY_BETWEEN_SEARCHES_MS, signal);
-    store(query.key, await searchByName(query, signal));
+    found(query.key, await searchByName(query, signal));
     onProgress(result.size, queries.length);
   }
+
+  // 3. Animés qui partagent chaque musique, puis mise en cache.
+  await attachSharedAnime([...fresh.values()].flat(), signal);
+  for (const [key, songs] of fresh) cacheSet(CACHE_PREFIX + key, songs, songs.length ? undefined : EMPTY_TTL_MS);
   return result;
 }

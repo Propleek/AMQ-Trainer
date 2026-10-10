@@ -125,6 +125,20 @@ input:focus {
   margin: 0;
 }
 
+.app-title {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-title:hover {
+  color: var(--accent);
+}
+
+/* Le compte reste à droite, le bouton d'accueil suit le titre. */
+.app-header > :last-child {
+  margin-left: auto;
+}
+
 @media (max-width: 600px) {
   .app {
     padding-block: 1rem;

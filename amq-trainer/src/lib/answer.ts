@@ -5,14 +5,19 @@ export function normalizeAnswer(answer: string): string {
   return answer.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-/** Tous les noms acceptés pour l'animé de la chanson (romaji, anglais, alternatifs). */
+/**
+ * Tous les noms acceptés (romaji, anglais, alternatifs) : ceux de l'animé de la chanson et ceux
+ * des autres animés qui utilisent exactement la même musique (`sharedAnime`).
+ */
 export function acceptedNames(song: Song): string[] {
-  return [song.anime.jpName, song.anime.enName, ...song.anime.altNames].filter((n) => n.trim());
+  const animes = [song.anime, ...song.sharedAnime];
+  return animes.flatMap((a) => [a.jpName, a.enName, ...a.altNames]).filter((n) => n.trim());
 }
 
 /**
- * Réponse juste si elle correspond exactement à l'un des noms de l'animé de la chanson.
- * Validation stricte : une autre saison, un film ou une OVA de la même licence est faux.
+ * Réponse juste si elle correspond exactement à l'un des noms acceptés.
+ * Validation stricte : une autre saison, un film ou une OVA de la même licence est faux,
+ * sauf s'il utilise la même musique (impossible à distinguer à l'écoute).
  */
 export function isCorrect(answer: string, song: Song): boolean {
   const normalized = normalizeAnswer(answer);

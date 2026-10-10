@@ -10,12 +10,15 @@ export interface LoadProgress {
 }
 
 export interface LoadResult {
-  /** Toutes les chansons de la liste, tous types confondus, dédoublonnées. */
+  /**
+   * Toutes les chansons de la liste, tous types confondus. Une musique utilisée par plusieurs
+   * animés de la liste (même `amqSongId`) n'apparaît qu'une fois.
+   */
   songs: Song[];
   /** Couverture AniList par ANN ID, pour l'écran de révélation. */
   covers: Map<number, string>;
-  /** Statut de l'animé dans la liste, par `annSongId` (filtre par statut). */
-  statusOf: Map<number, string>;
+  /** Statuts des animés de la liste qui utilisent la chanson, par `annSongId` (filtre par statut). */
+  statusOf: Map<number, string[]>;
   /** Titres des animés sans chanson trouvée. */
   withoutSongs: string[];
 }
@@ -34,20 +37,28 @@ export async function loadSongs(
   });
   const songsByKey = await fetchSongs(queries, (done, total) => onProgress({ step: 'songs', done, total }), signal);
 
-  const songs = new Map<number, Song>();
+  /** Par `amqSongId` (ou `annSongId` à défaut) : une même musique n'est jouée qu'une fois. */
+  const songs = new Map<string, Song>();
   const covers = new Map<number, string>();
-  const statusOf = new Map<number, string>();
+  /** Statuts par musique (même clé que `songs`). */
+  const statuses = new Map<string, Set<string>>();
   const withoutSongs: string[] = [];
   for (const entry of entries) {
     const found = songsByKey.get(animeKey(entry)) ?? [];
     if (!found.length) withoutSongs.push(entry.title);
 
     const cover = infos.get(animeKey(entry))?.imageUrl;
+    if (cover) for (const song of found) covers.set(song.annId, cover);
     for (const song of found) {
-      songs.set(song.annSongId, song);
-      statusOf.set(song.annSongId, entry.status);
-      if (cover) covers.set(song.annId, cover);
+      const key = song.amqSongId !== null ? `amq-${song.amqSongId}` : `ann-${song.annSongId}`;
+      statuses.set(key, (statuses.get(key) ?? new Set()).add(entry.status));
+      const kept = songs.get(key);
+      // Doublon : on garde l'entrée au plus petit annSongId, stable d'un chargement à l'autre
+      // (la progression est enregistrée sous cet identifiant).
+      if (!kept || song.annSongId < kept.annSongId) songs.set(key, song);
     }
   }
+  const statusOf = new Map<number, string[]>();
+  for (const [key, song] of songs) statusOf.set(song.annSongId, [...statuses.get(key)!]);
   return { songs: [...songs.values()], covers, statusOf, withoutSongs };
 }
