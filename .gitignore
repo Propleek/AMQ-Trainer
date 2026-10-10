@@ -1,0 +1,6 @@
+# Paramètres locaux de Claude Code
+.claude/
+
+# Documents de suivi du développement (usage local)
+ROADMAP.md
+progress.md

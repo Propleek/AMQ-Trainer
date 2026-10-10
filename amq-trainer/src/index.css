@@ -1,0 +1,70 @@
+:root {
+  --bg: #1a1a17;
+  --surface: #262622;
+  --border: #3a3a35;
+  --text: #e8e6e3;
+  --text-muted: #9a9890;
+  --accent: #5b8def;
+
+  color-scheme: dark;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 0.5em;
+  line-height: 1.2;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4em 0.9em;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.app-header {
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 600px) {
+  .app {
+    padding-block: 1rem;
+  }
+
+  .app-header {
+    margin-bottom: 1rem;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+}

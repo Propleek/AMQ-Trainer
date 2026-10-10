@@ -1,0 +1,50 @@
+/** Animé d'une liste (import AniList, export XML MyAnimeList ou liste manuelle). */
+export interface AnimeEntry {
+  malId: number | null;
+  /** Renseigné pour les entrées « MAL entry not found » et les listes AniList / manuelles. */
+  anilistId: number | null;
+  title: string;
+  status: string;
+  score: number;
+}
+
+/** Liste d'animés importée. */
+export interface MalList {
+  userName: string;
+  entries: AnimeEntry[];
+}
+
+export type SongKind = 'opening' | 'ending' | 'insert';
+
+export const SONG_KIND_LABELS: Record<SongKind, string> = {
+  opening: 'Openings',
+  ending: 'Endings',
+  insert: 'Insert songs',
+};
+
+/** Chanson jouable dans le quiz. */
+export interface Song {
+  annSongId: number;
+  /** Identifiant ANN de l'animé : la réponse doit désigner cet animé exact. */
+  annId: number;
+  kind: SongKind;
+  /** Numéro de l'opening / ending (0 si absent, toujours pour les insert songs). */
+  number: number;
+  name: string;
+  artist: string;
+  audioUrl: string;
+  /** Durée de l'extrait en secondes, si connue. */
+  length: number | null;
+  /** Difficulté AnisongDB (0 = très difficile, 100 = très facile), si connue. */
+  difficulty: number | null;
+  anime: {
+    /** Nom romaji, celui de l'autocomplétion AnisongDB. */
+    jpName: string;
+    enName: string;
+    altNames: string[];
+    /** Ex. « Spring 2013 ». */
+    vintage: string | null;
+    /** Ex. « TV », « Movie ». */
+    type: string | null;
+  };
+}
