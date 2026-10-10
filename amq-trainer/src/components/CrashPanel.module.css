@@ -1,0 +1,44 @@
+.panel {
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--danger);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.panel h3 {
+  margin-bottom: 0.5rem;
+}
+
+.panel p {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.actions button:first-child {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.details {
+  margin-top: 1rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.details summary {
+  cursor: pointer;
+}
+
+.details pre {
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

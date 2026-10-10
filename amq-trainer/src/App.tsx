@@ -8,6 +8,8 @@ import SetupScreen from './screens/SetupScreen';
 import type { QuizStart } from './screens/SetupScreen';
 import QuizScreen from './screens/QuizScreen';
 import AccountBar from './components/AccountBar';
+import ErrorBoundary from './components/ErrorBoundary';
+import CrashPanel from './components/CrashPanel';
 import { useAccount } from './lib/sync';
 import StatsScreen from './screens/StatsScreen';
 import { drawForMode, filterSongs, modePool, shuffle } from './lib/quizSettings';
@@ -41,64 +43,76 @@ export default function App() {
         <h1>AMQ Trainer</h1>
         <AccountBar />
       </header>
-      {screen.name === 'import' && (
-        <ImportScreen
-          list={list}
-          onLoad={selectList}
-          onEditList={(saved) => {
-            // La liste sélectionnée peut être celle qu'on va modifier : on la désélectionne.
-            selectList(null);
-            setScreen({ name: 'list-editor', list: saved });
-          }}
-          onNext={() => setScreen({ name: 'setup' })}
-        />
-      )}
-      {screen.name === 'list-editor' && (
-        <ListEditorScreen
-          // Une clé par liste : l'éditeur repart de zéro quand on change de liste.
-          key={screen.list?.id ?? 'new'}
-          initial={screen.list}
-          onClose={() => setScreen({ name: 'import' })}
-        />
-      )}
-      {screen.name === 'setup' && list && (
-        <SetupScreen
-          // Remonté quand la synchronisation modifie la progression : les compteurs sont recalculés.
-          key={account.revision}
-          list={list}
-          loaded={loaded?.list === list ? loaded.result : null}
-          onLoaded={handleLoaded}
-          onBack={() => setScreen({ name: 'import' })}
-          onStart={(start) => setScreen({ name: 'quiz', id: 0, start })}
-          onStats={() => setScreen({ name: 'stats' })}
-        />
-      )}
-      {screen.name === 'stats' && loaded && (
-        <StatsScreen key={account.revision} listName={loaded.list.userName} songs={loaded.result.songs} onBack={() => setScreen({ name: 'setup' })} />
-      )}
-      {screen.name === 'quiz' && loaded && (
-        <QuizScreen
-          // Une clé par partie : « Rejouer les ratés » repart d'un écran neuf.
-          key={screen.id}
-          start={screen.start}
-          listName={loaded.list.userName}
-          listSongs={loaded.result.songs}
-          covers={loaded.result.covers}
-          onQuit={() => setScreen({ name: 'setup' })}
-          onReplay={(songs, mode) =>
-            setScreen({ name: 'quiz', id: screen.id + 1, start: { settings: { ...screen.start.settings, mode }, songs: shuffle(songs) } })
-          }
-          getNextBatch={
-            screen.start.settings.mode === 'discovery'
-              ? () => {
-                  const { settings } = screen.start;
-                  const pool = modePool(filterSongs(loaded.result.songs, loaded.result.statusOf, settings), settings);
-                  return drawForMode(pool, 'discovery', settings.counts.discovery);
-                }
-              : null
-          }
-        />
-      )}
+      <ErrorBoundary
+        fallback={(error, reset) => (
+          <CrashPanel
+            error={error}
+            onHome={() => {
+              setScreen({ name: 'import' });
+              reset();
+            }}
+          />
+        )}
+      >
+        {screen.name === 'import' && (
+          <ImportScreen
+            list={list}
+            onLoad={selectList}
+            onEditList={(saved) => {
+              // La liste sélectionnée peut être celle qu'on va modifier : on la désélectionne.
+              selectList(null);
+              setScreen({ name: 'list-editor', list: saved });
+            }}
+            onNext={() => setScreen({ name: 'setup' })}
+          />
+        )}
+        {screen.name === 'list-editor' && (
+          <ListEditorScreen
+            // Une clé par liste : l'éditeur repart de zéro quand on change de liste.
+            key={screen.list?.id ?? 'new'}
+            initial={screen.list}
+            onClose={() => setScreen({ name: 'import' })}
+          />
+        )}
+        {screen.name === 'setup' && list && (
+          <SetupScreen
+            // Remonté quand la synchronisation modifie la progression : les compteurs sont recalculés.
+            key={account.revision}
+            list={list}
+            loaded={loaded?.list === list ? loaded.result : null}
+            onLoaded={handleLoaded}
+            onBack={() => setScreen({ name: 'import' })}
+            onStart={(start) => setScreen({ name: 'quiz', id: 0, start })}
+            onStats={() => setScreen({ name: 'stats' })}
+          />
+        )}
+        {screen.name === 'stats' && loaded && (
+          <StatsScreen key={account.revision} listName={loaded.list.userName} songs={loaded.result.songs} onBack={() => setScreen({ name: 'setup' })} />
+        )}
+        {screen.name === 'quiz' && loaded && (
+          <QuizScreen
+            // Une clé par partie : « Rejouer les ratés » repart d'un écran neuf.
+            key={screen.id}
+            start={screen.start}
+            listName={loaded.list.userName}
+            listSongs={loaded.result.songs}
+            covers={loaded.result.covers}
+            onQuit={() => setScreen({ name: 'setup' })}
+            onReplay={(songs, mode) =>
+              setScreen({ name: 'quiz', id: screen.id + 1, start: { settings: { ...screen.start.settings, mode }, songs: shuffle(songs) } })
+            }
+            getNextBatch={
+              screen.start.settings.mode === 'discovery'
+                ? () => {
+                    const { settings } = screen.start;
+                    const pool = modePool(filterSongs(loaded.result.songs, loaded.result.statusOf, settings), settings);
+                    return drawForMode(pool, 'discovery', settings.counts.discovery);
+                  }
+                : null
+            }
+          />
+        )}
+      </ErrorBoundary>
     </main>
   );
 }
