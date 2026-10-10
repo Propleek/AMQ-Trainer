@@ -62,7 +62,6 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
   const nextTrack = useRef<Track | null>(null);
   const volumeRef = useRef(volume);
   const inputRef = useRef<HTMLInputElement>(null);
-  const latestInput = useRef('');
   /** Réponse validée avec Entrée (modifiable jusqu'à la fin du temps), affichée dans la bulle. */
   const [submitted, setSubmitted] = useState('');
   const submittedRef = useRef('');
@@ -150,12 +149,10 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
     [songs, index],
   );
 
-  /** Réponse retenue : la dernière validée avec Entrée, sinon le texte tapé (non validé). */
-  const finalAnswer = () => submittedRef.current || latestInput.current;
 
   /** Passer : révèle tout de suite, sans attendre la fin du temps. */
   const skip = useCallback(() => {
-    finalize(submittedRef.current || latestInput.current);
+    finalize(submittedRef.current);
   }, [finalize]);
 
   // Minuteur : à la fin du temps, la manche est jugée.
@@ -164,7 +161,8 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
     const timer = setInterval(() => {
       const t = performance.now();
       setNow(t);
-      if (t >= deadline) finalize(finalAnswer());
+      // Seule la réponse validée avec Entrée compte : un texte tapé mais non validé est ignoré.
+      if (t >= deadline) finalize(submittedRef.current);
     }, 100);
     return () => clearInterval(timer);
   }, [phase, deadline, finalize]);
@@ -183,7 +181,6 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
 
   const next = useCallback(() => {
     setInput('');
-    latestInput.current = '';
     submittedRef.current = '';
     setSubmitted('');
     const finished = index + 1 >= songs.length;
@@ -358,10 +355,7 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
             <AnswerInput
               ref={inputRef}
               value={input}
-              onChange={(value) => {
-                setInput(value);
-                latestInput.current = value;
-              }}
+              onChange={setInput}
               onSubmit={(value) => {
                 if (phase !== 'guess' || !value.trim()) return;
                 submittedRef.current = value.trim();
