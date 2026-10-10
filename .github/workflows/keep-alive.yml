@@ -12,11 +12,12 @@ permissions: {}
 jobs:
   ping:
     runs-on: ubuntu-latest
-    if: ${{ vars.VITE_SUPABASE_URL != '' }}
     steps:
       - name: Requête sur la base
         env:
-          URL: ${{ vars.VITE_SUPABASE_URL }}
-          KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         # Sans session, la RLS renvoie une liste vide : la requête atteint quand même la base.
-        run: curl --fail --silent --show-error "$URL/rest/v1/test_results?select=played_at&limit=1" -H "apikey: $KEY"
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then echo "Supabase non configuré : rien à faire."; exit 0; fi
+          curl --fail --silent --show-error "$URL/rest/v1/test_results?select=played_at&limit=1" -H "apikey: $KEY"

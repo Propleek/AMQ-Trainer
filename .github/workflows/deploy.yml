@@ -35,12 +35,17 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
-      - run: npm run build
-        # Comptes Discord / Supabase : variables du dépôt (Settings → Secrets and variables → Actions → Variables).
-        # Valeurs publiques par conception ; sans elles, le site est compilé sans comptes.
+      # Comptes Discord / Supabase : Settings → Secrets and variables → Actions, onglet Variables
+      # (l'onglet Secrets est aussi accepté). Valeurs publiques par conception ; sans elles,
+      # le site est compilé sans comptes, avec un avertissement dans le résumé du workflow.
+      - run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::warning title=Comptes désactivés::VITE_SUPABASE_URL ou VITE_SUPABASE_PUBLISHABLE_KEY est vide : le site est compilé sans connexion Discord."
+          fi
+          npm run build
         env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
       - uses: actions/upload-pages-artifact@v4
         with:
