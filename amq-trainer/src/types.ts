@@ -22,6 +22,13 @@ export const SONG_KIND_LABELS: Record<SongKind, string> = {
   insert: 'Insert songs',
 };
 
+const SONG_TYPE_NAMES: Record<SongKind, string> = { opening: 'Opening', ending: 'Ending', insert: 'Insert Song' };
+
+/** Type de la chanson, comme sur AMQ : « Opening 2 », « Ending 1 », « Insert Song ». */
+export function songTypeLabel(song: Pick<Song, 'kind' | 'number'>): string {
+  return song.number ? `${SONG_TYPE_NAMES[song.kind]} ${song.number}` : SONG_TYPE_NAMES[song.kind];
+}
+
 /** Chanson jouable dans le quiz. */
 export interface Song {
   annSongId: number;

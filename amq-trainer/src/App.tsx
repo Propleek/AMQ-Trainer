@@ -6,12 +6,14 @@ import ImportScreen from './screens/ImportScreen';
 import ListEditorScreen from './screens/ListEditorScreen';
 import SetupScreen from './screens/SetupScreen';
 import type { QuizStart } from './screens/SetupScreen';
+import QuizScreen from './screens/QuizScreen';
+import { shuffle } from './lib/quizSettings';
 
 type Screen =
   | { name: 'import' }
   | { name: 'list-editor'; list: SavedList | null }
   | { name: 'setup' }
-  | { name: 'quiz'; start: QuizStart };
+  | { name: 'quiz'; id: number; start: QuizStart };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'import' });
@@ -59,26 +61,19 @@ export default function App() {
           loaded={loaded?.list === list ? loaded.result : null}
           onLoaded={handleLoaded}
           onBack={() => setScreen({ name: 'import' })}
-          onStart={(start) => setScreen({ name: 'quiz', start })}
+          onStart={(start) => setScreen({ name: 'quiz', id: 0, start })}
         />
       )}
-      {screen.name === 'quiz' && (
-        <section className="panel">
-          <h2>Partie</h2>
-          <p className="muted">
-            {screen.start.songs.length} musiques tirées, {screen.start.settings.guessTime} s par réponse. Le quiz arrive à l'étape 4.
-          </p>
-          <ol>
-            {screen.start.songs.slice(0, 10).map((song) => (
-              <li key={song.annSongId}>
-                {song.anime.jpName} — {song.name} ({song.artist})
-              </li>
-            ))}
-          </ol>
-          <button type="button" onClick={() => setScreen({ name: 'setup' })}>
-            Retour
-          </button>
-        </section>
+      {screen.name === 'quiz' && loaded && (
+        <QuizScreen
+          // Une clé par partie : « Rejouer les ratés » repart d'un écran neuf.
+          key={screen.id}
+          start={screen.start}
+          listSongs={loaded.result.songs}
+          covers={loaded.result.covers}
+          onQuit={() => setScreen({ name: 'setup' })}
+          onReplay={(songs) => setScreen({ name: 'quiz', id: screen.id + 1, start: { ...screen.start, songs: shuffle(songs) } })}
+        />
       )}
     </main>
   );
