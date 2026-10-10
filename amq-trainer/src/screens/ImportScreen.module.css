@@ -1,0 +1,138 @@
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.column {
+  min-width: 0;
+}
+
+.anilist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.anilist label {
+  font-weight: 600;
+}
+
+.anilist p {
+  margin: 0;
+  font-size: 0.9em;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.row input {
+  flex: 1 1 12rem;
+}
+
+.separator {
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 2.5rem 1rem;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dropzone p {
+  margin: 0;
+}
+
+.dropzone:hover,
+.dragging {
+  border-color: var(--accent);
+}
+
+.dragging {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+.empty {
+  margin: 0 0 1rem;
+}
+
+.savedLists {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.savedLists li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.savedInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.savedInfo strong {
+  overflow-wrap: anywhere;
+}
+
+.savedInfo span {
+  font-size: 0.9em;
+}
+
+.savedActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.newList {
+  width: 100%;
+}
+
+.summary {
+  margin-top: 1.5rem;
+}
+
+.summary p {
+  margin: 0.25rem 0;
+}
+
+.statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+}
+
+.next {
+  margin-top: 1rem;
+}

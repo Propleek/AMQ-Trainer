@@ -5,6 +5,7 @@
   --text: #e8e6e3;
   --text-muted: #9a9890;
   --accent: #5b8def;
+  --danger: #e5534b;
 
   color-scheme: dark;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -43,6 +44,64 @@ button {
 
 button:hover {
   border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:disabled:hover {
+  border-color: var(--border);
+}
+
+/* Action principale d'un écran. */
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Bouton discret (supprimer, retirer…). */
+button.danger:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+input[type='text'],
+input[type='search'],
+input[type='number'] {
+  min-width: 0;
+  padding: 0.4em 0.7em;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.panel {
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.error {
+  margin: 1rem 0 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  border-radius: 4px;
 }
 
 .app {
