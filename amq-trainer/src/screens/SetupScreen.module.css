@@ -1,3 +1,17 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.header h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .group {
   margin: 0 0 1.25rem;
   padding-top: 0.75rem;
@@ -24,8 +38,16 @@
   background: var(--danger);
 }
 
+.due {
+  background: var(--due);
+}
+
 .known {
   background: var(--success);
+}
+
+.stateBar > div + div {
+  margin-left: 2px;
 }
 
 .stateLegend {

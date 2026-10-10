@@ -1,5 +1,5 @@
 import type { Song, SongKind } from '../types';
-import { songState } from './progress';
+import { getProgress, songState } from './progress';
 
 const STORAGE_KEY = 'amq-trainer:settings:v2';
 
@@ -84,7 +84,7 @@ export function filterSongs(songs: Song[], statusOf: Map<number, string>, settin
 }
 
 /**
- * Pool de chansons d'un mode : Découverte = jamais vues ; Révision = à réviser ;
+ * Pool de chansons d'un mode : Découverte = jamais vues ; Révision = ratées puis à revoir ;
  * Test = déjà vues (ou toutes, selon le réglage).
  */
 export function modePool(songs: Song[], settings: Pick<QuizSettings, 'mode' | 'testIncludesUnseen'>): Song[] {
@@ -92,10 +92,26 @@ export function modePool(songs: Song[], settings: Pick<QuizSettings, 'mode' | 't
     case 'discovery':
       return songs.filter((s) => songState(s.annSongId) === 'unseen');
     case 'review':
-      return songs.filter((s) => songState(s.annSongId) === 'review');
+      return songs.filter((s) => {
+        const state = songState(s.annSongId);
+        return state === 'review' || state === 'due';
+      });
     case 'test':
       return settings.testIncludesUnseen ? songs : songs.filter((s) => songState(s.annSongId) !== 'unseen');
   }
+}
+
+/**
+ * Tirage d'une partie dans le pool d'un mode. En Révision, les chansons ratées passent d'abord,
+ * puis celles à revoir depuis le plus longtemps ; l'ordre de jeu est ensuite mélangé.
+ */
+export function drawForMode(pool: Song[], mode: QuizMode, count: number | null): Song[] {
+  if (mode !== 'review' || count === null || count >= pool.length) return drawSongs(pool, count);
+  const missed = shuffle(pool.filter((s) => songState(s.annSongId) === 'review'));
+  const due = pool
+    .filter((s) => songState(s.annSongId) === 'due')
+    .sort((a, b) => (getProgress(a.annSongId)?.dueAt ?? '').localeCompare(getProgress(b.annSongId)?.dueAt ?? ''));
+  return shuffle([...missed, ...due].slice(0, count));
 }
 
 /** Mélange de Fisher-Yates (copie). */

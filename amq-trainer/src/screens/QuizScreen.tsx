@@ -6,6 +6,7 @@ import { isCorrect } from '../lib/answer';
 import { buildAutocompleteNames, fetchAnimeNames } from '../lib/animeNames';
 import { disposeTrack, loadVolume, prepareTrack, saveVolume } from '../lib/quizAudio';
 import { recordAnswer } from '../lib/progress';
+import { addTestResult } from '../lib/testHistory';
 import { MODE_LABELS } from '../lib/quizSettings';
 import type { QuizMode } from '../lib/quizSettings';
 import type { Track } from '../lib/quizAudio';
@@ -30,6 +31,8 @@ type Phase = 'loading' | 'blocked' | 'guess' | 'reveal' | 'done';
 
 interface Props {
   start: QuizStart;
+  /** Nom de la liste, pour l'historique des Tests. */
+  listName: string;
   /** Toutes les chansons de la liste : leurs noms complètent l'autocomplétion. */
   listSongs: Song[];
   /** Couverture AniList par ANN ID. */
@@ -41,7 +44,7 @@ interface Props {
   getNextBatch: (() => Song[]) | null;
 }
 
-export default function QuizScreen({ start, listSongs, covers, onQuit, onReplay, getNextBatch }: Props) {
+export default function QuizScreen({ start, listName, listSongs, covers, onQuit, onReplay, getNextBatch }: Props) {
   const { songs, settings } = start;
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('loading');
@@ -153,9 +156,16 @@ export default function QuizScreen({ start, listSongs, covers, onQuit, onReplay,
   const next = useCallback(() => {
     setInput('');
     latestInput.current = '';
-    setPhase(index + 1 >= songs.length ? 'done' : 'loading');
+    const finished = index + 1 >= songs.length;
+    if (finished && settings.mode === 'test') {
+      const played = answers.filter((a) => !a.unavailable);
+      if (played.length) {
+        addTestResult({ listName, playedAt: new Date().toISOString(), total: played.length, correct: played.filter((a) => a.correct).length });
+      }
+    }
+    setPhase(finished ? 'done' : 'loading');
     setIndex(index + 1);
-  }, [index, songs.length]);
+  }, [index, songs.length, settings.mode, answers, listName]);
 
   // Révélation : Entrée passe à la musique suivante.
   useEffect(() => {

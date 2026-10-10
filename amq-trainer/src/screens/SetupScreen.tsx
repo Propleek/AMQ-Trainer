@@ -4,7 +4,7 @@ import { SONG_KIND_LABELS } from '../types';
 import { countByStatus } from '../lib/parseMalXml';
 import { loadSongs } from '../lib/loadSongs';
 import type { LoadProgress, LoadResult } from '../lib/loadSongs';
-import { DEFAULT_SETTINGS, drawSongs, filterSongs, GUESS_TIME_RANGE, loadSettings, MODE_LABELS, modePool, saveSettings } from '../lib/quizSettings';
+import { DEFAULT_SETTINGS, drawForMode, filterSongs, GUESS_TIME_RANGE, loadSettings, MODE_LABELS, modePool, saveSettings } from '../lib/quizSettings';
 import type { QuizMode, QuizSettings, SamplePoint } from '../lib/quizSettings';
 import { SONG_STATE_LABELS, songState } from '../lib/progress';
 import type { SongState } from '../lib/progress';
@@ -21,11 +21,11 @@ const STEP_LABELS: Record<LoadProgress['step'], string> = {
 
 const MODES: { value: QuizMode; description: string; empty: string }[] = [
   { value: 'discovery', description: 'Musiques jamais vues, par paquets', empty: 'Toute la liste a été découverte' },
-  { value: 'review', description: 'Musiques ratées, jusqu’à les connaître', empty: 'Rien à réviser' },
+  { value: 'review', description: 'Ratées, puis celles dont la révision est due', empty: 'Rien à réviser' },
   { value: 'test', description: 'Partie comme sur AMQ, pour mesurer son niveau', empty: 'Aucune musique déjà vue' },
 ];
 
-const STATES: SongState[] = ['unseen', 'review', 'known'];
+const STATES: SongState[] = ['unseen', 'review', 'due', 'known'];
 
 const SAMPLE_POINTS: { value: SamplePoint; label: string }[] = [
   { value: 'random', label: 'Aléatoire (comme AMQ)' },
@@ -45,11 +45,13 @@ interface Props {
   onLoaded: (result: LoadResult) => void;
   onBack: () => void;
   onStart: (start: QuizStart) => void;
+  /** Ouvre le tableau de bord de la liste. */
+  onStats: () => void;
 }
 
 type LoadState = { status: 'loading'; progress: LoadProgress | null } | { status: 'error'; message: string };
 
-export default function SetupScreen({ list, loaded, onLoaded, onBack, onStart }: Props) {
+export default function SetupScreen({ list, loaded, onLoaded, onBack, onStart, onStats }: Props) {
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading', progress: null });
   const [attempt, setAttempt] = useState(0);
   const [settings, setSettings] = useState(loadSettings);
@@ -72,14 +74,14 @@ export default function SetupScreen({ list, loaded, onLoaded, onBack, onStart }:
   /** Chansons qui correspondent aux filtres, tous états confondus. */
   const filtered = useMemo(() => (loaded ? filterSongs(loaded.songs, loaded.statusOf, settings) : []), [loaded, settings]);
   const stateCounts = useMemo(() => {
-    const counts: Record<SongState, number> = { unseen: 0, review: 0, known: 0 };
+    const counts: Record<SongState, number> = { unseen: 0, review: 0, due: 0, known: 0 };
     for (const song of filtered) counts[songState(song.annSongId)]++;
     return counts;
   }, [filtered]);
   const modeCounts: Record<QuizMode, number> = {
     discovery: stateCounts.unseen,
-    review: stateCounts.review,
-    test: settings.testIncludesUnseen ? filtered.length : stateCounts.review + stateCounts.known,
+    review: stateCounts.review + stateCounts.due,
+    test: settings.testIncludesUnseen ? filtered.length : filtered.length - stateCounts.unseen,
   };
   /** Pool du mode choisi : la partie y est tirée. */
   const pool = useMemo(() => modePool(filtered, settings), [filtered, settings]);
@@ -147,7 +149,12 @@ export default function SetupScreen({ list, loaded, onLoaded, onBack, onStart }:
 
   return (
     <section>
-      <h2>{list.userName}</h2>
+      <div className={styles.header}>
+        <h2>{list.userName}</h2>
+        <button type="button" onClick={onStats}>
+          Statistiques
+        </button>
+      </div>
       <p className="muted">
         {loaded.songs.length} musiques trouvées pour {list.entries.length} animés.
       </p>
@@ -320,7 +327,7 @@ export default function SetupScreen({ list, loaded, onLoaded, onBack, onStart }:
         <button type="button" onClick={onBack}>
           Retour
         </button>
-        <button type="button" className="primary" disabled={!pool.length} onClick={() => onStart({ settings, songs: drawSongs(pool, playCount) })}>
+        <button type="button" className="primary" disabled={!pool.length} onClick={() => onStart({ settings, songs: drawForMode(pool, settings.mode, playCount) })}>
           Lancer la partie
         </button>
       </div>

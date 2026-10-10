@@ -1,0 +1,152 @@
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.stats > p {
+  margin: -0.75rem 0 0;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.header h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 0.75rem;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+}
+
+.tileLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.tileValue {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.dot {
+  flex: none;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+}
+
+.unseen {
+  background: var(--border);
+}
+
+.review {
+  background: var(--danger);
+}
+
+.due {
+  background: var(--due);
+}
+
+.known {
+  background: var(--success);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.card h3,
+.card > p {
+  margin: 0;
+}
+
+.card > p {
+  font-size: 0.9rem;
+}
+
+.table summary {
+  cursor: pointer;
+}
+
+.table table {
+  width: 100%;
+  margin-top: 0.5rem;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.table th {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.missed {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.missed li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.missedInfo {
+  display: flex;
+  flex: 1 1 14rem;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.missedCount {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}

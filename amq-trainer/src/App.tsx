@@ -7,12 +7,14 @@ import ListEditorScreen from './screens/ListEditorScreen';
 import SetupScreen from './screens/SetupScreen';
 import type { QuizStart } from './screens/SetupScreen';
 import QuizScreen from './screens/QuizScreen';
-import { drawSongs, filterSongs, modePool, shuffle } from './lib/quizSettings';
+import StatsScreen from './screens/StatsScreen';
+import { drawForMode, filterSongs, modePool, shuffle } from './lib/quizSettings';
 
 type Screen =
   | { name: 'import' }
   | { name: 'list-editor'; list: SavedList | null }
   | { name: 'setup' }
+  | { name: 'stats' }
   | { name: 'quiz'; id: number; start: QuizStart };
 
 export default function App() {
@@ -62,13 +64,18 @@ export default function App() {
           onLoaded={handleLoaded}
           onBack={() => setScreen({ name: 'import' })}
           onStart={(start) => setScreen({ name: 'quiz', id: 0, start })}
+          onStats={() => setScreen({ name: 'stats' })}
         />
+      )}
+      {screen.name === 'stats' && loaded && (
+        <StatsScreen listName={loaded.list.userName} songs={loaded.result.songs} onBack={() => setScreen({ name: 'setup' })} />
       )}
       {screen.name === 'quiz' && loaded && (
         <QuizScreen
           // Une clé par partie : « Rejouer les ratés » repart d'un écran neuf.
           key={screen.id}
           start={screen.start}
+          listName={loaded.list.userName}
           listSongs={loaded.result.songs}
           covers={loaded.result.covers}
           onQuit={() => setScreen({ name: 'setup' })}
@@ -80,7 +87,7 @@ export default function App() {
               ? () => {
                   const { settings } = screen.start;
                   const pool = modePool(filterSongs(loaded.result.songs, loaded.result.statusOf, settings), settings);
-                  return drawSongs(pool, settings.counts.discovery);
+                  return drawForMode(pool, 'discovery', settings.counts.discovery);
                 }
               : null
           }
