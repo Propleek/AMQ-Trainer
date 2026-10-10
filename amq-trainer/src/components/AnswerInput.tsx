@@ -10,13 +10,15 @@ interface Props {
   onChange: (value: string) => void;
   /** Validation : touche Entrée, ou clic sur une proposition. */
   onSubmit: (value: string) => void;
+  /** Ctrl + Entrée (⌘ + Entrée sur Mac) : passer à la révélation. */
+  onSkip?: () => void;
   /** Noms proposés (toute la base AnisongDB + noms de la liste). */
   names: string[];
   disabled?: boolean;
 }
 
 /** Champ de réponse avec la liste déroulante des noms d'animés, comme sur AMQ. */
-const AnswerInput = forwardRef<HTMLInputElement, Props>(function AnswerInput({ value, onChange, onSubmit, names, disabled }, ref) {
+const AnswerInput = forwardRef<HTMLInputElement, Props>(function AnswerInput({ value, onChange, onSubmit, onSkip, names, disabled }, ref) {
   const [highlighted, setHighlighted] = useState(-1);
   const [open, setOpen] = useState(false);
 
@@ -52,6 +54,12 @@ const AnswerInput = forwardRef<HTMLInputElement, Props>(function AnswerInput({ v
         if (next < -1) return suggestions.length - 1;
         return next;
       });
+    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      if (e.repeat) return;
+      setOpen(false);
+      setHighlighted(-1);
+      onSkip?.();
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (e.repeat) return;

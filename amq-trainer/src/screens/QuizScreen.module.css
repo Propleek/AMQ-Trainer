@@ -140,6 +140,34 @@
   opacity: 0.8;
 }
 
+.played {
+  margin: -0.5rem 0 0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.answerRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.skip {
+  flex: none;
+  padding: 0 1.1em;
+}
+
+.hint {
+  margin: -0.5rem 0 0;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.hint .key {
+  margin: 0;
+  border-color: var(--border);
+}
+
 @media (max-width: 600px) {
   .reveal {
     flex-direction: column;

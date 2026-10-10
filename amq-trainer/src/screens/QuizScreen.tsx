@@ -12,6 +12,7 @@ import { MODE_LABELS } from '../lib/quizSettings';
 import type { QuizMode } from '../lib/quizSettings';
 import type { Track } from '../lib/quizAudio';
 import AnswerInput from '../components/AnswerInput';
+import PlayerCard from '../components/PlayerCard';
 import QuizResults from '../components/QuizResults';
 import styles from './QuizScreen.module.css';
 
@@ -62,7 +63,10 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
   const volumeRef = useRef(volume);
   const inputRef = useRef<HTMLInputElement>(null);
   const latestInput = useRef('');
-  /** Empêche une double validation (Entrée et fin du temps au même moment). */
+  /** Réponse validée avec Entrée (modifiable jusqu'à la fin du temps), affichée dans la bulle. */
+  const [submitted, setSubmitted] = useState('');
+  const submittedRef = useRef('');
+  /** Empêche une double révélation (Passer et fin du temps au même moment). */
   const answered = useRef(false);
 
   // Noms de toute la base AnisongDB (en cache après la première partie).
@@ -77,6 +81,8 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
 
   const beginGuess = useCallback(() => {
     answered.current = false;
+    submittedRef.current = '';
+    setSubmitted('');
     const t = performance.now();
     setNow(t);
     setDeadline(t + settings.guessTime * 1000);
@@ -130,7 +136,8 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
     [],
   );
 
-  const submit = useCallback(
+  /** Fin de la manche (fin du temps ou Passer) : la réponse est jugée et révélée. */
+  const finalize = useCallback(
     (answer: string) => {
       if (answered.current) return;
       answered.current = true;
@@ -143,20 +150,42 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
     [songs, index],
   );
 
-  // Minuteur : à la fin du temps, la saisie en cours est validée.
+  /** Réponse retenue : la dernière validée avec Entrée, sinon le texte tapé (non validé). */
+  const finalAnswer = () => submittedRef.current || latestInput.current;
+
+  /** Passer : révèle tout de suite, sans attendre la fin du temps. */
+  const skip = useCallback(() => {
+    finalize(submittedRef.current || latestInput.current);
+  }, [finalize]);
+
+  // Minuteur : à la fin du temps, la manche est jugée.
   useEffect(() => {
     if (phase !== 'guess') return;
     const timer = setInterval(() => {
       const t = performance.now();
       setNow(t);
-      if (t >= deadline) submit(latestInput.current);
+      if (t >= deadline) finalize(finalAnswer());
     }, 100);
     return () => clearInterval(timer);
-  }, [phase, deadline, submit]);
+  }, [phase, deadline, finalize]);
+
+  // Ctrl + Entrée hors du champ (après un clic sur le volume, par exemple) : passer aussi.
+  useEffect(() => {
+    if (phase !== 'guess') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.key !== 'Enter' || !(e.ctrlKey || e.metaKey) || e.repeat) return;
+      e.preventDefault();
+      skip();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [phase, skip]);
 
   const next = useCallback(() => {
     setInput('');
     latestInput.current = '';
+    submittedRef.current = '';
+    setSubmitted('');
     const finished = index + 1 >= songs.length;
     if (finished && settings.mode === 'test') {
       const played = answers.filter((a) => !a.unavailable);
@@ -238,9 +267,6 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
         <span>
           Musique <strong>{index + 1}</strong> / {songs.length}
         </span>
-        <span>
-          Score : <strong>{score}</strong> / {played}
-        </span>
         <label className={styles.volume}>
           <span aria-hidden="true">🔊</span>
           <input
@@ -307,32 +333,53 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
                   .filter(Boolean)
                   .join(' · ')}
               </p>
-              {!answer.unavailable && (
-                <p>
-                  Ta réponse : {answer.answer ? <strong>{answer.answer}</strong> : <span className="muted">(aucune)</span>}
-                </p>
-              )}
             </div>
           </div>
         )}
       </div>
+
+      <PlayerCard
+        answer={answer ? answer.answer : submitted}
+        verdict={!answer ? 'pending' : answer.unavailable ? 'neutral' : answer.correct ? 'correct' : 'wrong'}
+        score={score}
+        round={index}
+      />
+      <p className={`muted ${styles.played}`}>
+        Score : {score} / {played}
+      </p>
 
       {phase === 'reveal' ? (
         <button type="button" className={`primary ${styles.next}`} onClick={next}>
           {index + 1 >= songs.length ? 'Voir les résultats' : 'Suivant'} <span className={styles.key}>Entrée</span>
         </button>
       ) : (
-        <AnswerInput
-          ref={inputRef}
-          value={input}
-          onChange={(value) => {
-            setInput(value);
-            latestInput.current = value;
-          }}
-          onSubmit={(value) => phase === 'guess' && submit(value)}
-          names={names}
-          disabled={phase === 'blocked'}
-        />
+        <>
+          <div className={styles.answerRow}>
+            <AnswerInput
+              ref={inputRef}
+              value={input}
+              onChange={(value) => {
+                setInput(value);
+                latestInput.current = value;
+              }}
+              onSubmit={(value) => {
+                if (phase !== 'guess' || !value.trim()) return;
+                submittedRef.current = value.trim();
+                setSubmitted(value.trim());
+              }}
+              onSkip={() => phase === 'guess' && skip()}
+              names={names}
+              disabled={phase === 'blocked'}
+            />
+            <button type="button" className={styles.skip} onClick={skip} disabled={phase !== 'guess'}>
+              Passer
+            </button>
+          </div>
+          <p className={`muted ${styles.hint}`}>
+            <span className={styles.key}>Entrée</span> valider (modifiable jusqu'à la fin du temps) ·{' '}
+            <span className={styles.key}>Ctrl</span> + <span className={styles.key}>Entrée</span> passer
+          </p>
+        </>
       )}
     </section>
   );
