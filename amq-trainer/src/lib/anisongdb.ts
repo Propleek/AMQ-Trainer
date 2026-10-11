@@ -10,7 +10,7 @@ const MAX_IDS_PER_REQUEST = 500;
 // AnisongDB limite le débit (réponse 429 sans en-tête CORS, vue comme une erreur réseau).
 const DELAY_BETWEEN_SEARCHES_MS = 500;
 /** Version du cache : à incrémenter quand la logique de recherche ou la forme de `Song` change. */
-const CACHE_PREFIX = 'anisongdb:v3:';
+const CACHE_PREFIX = 'anisongdb:v4:';
 /** Un résultat vide est revérifié plus tôt : AnisongDB ajoute régulièrement des chansons. */
 const EMPTY_TTL_MS = DAY_MS;
 
@@ -82,6 +82,7 @@ function toSong(entry: SongEntry): Song | null {
   if (!file || !kind) return null;
   return {
     annSongId: entry.annSongId,
+    progressId: entry.annSongId,
     amqSongId: entry.amqSongId ?? null,
     sharedAnime: [],
     annId: entry.annId,
@@ -185,10 +186,15 @@ async function attachSharedAnime(songs: Song[], signal?: AbortSignal): Promise<v
   }
   for (const song of songs) {
     const shared = new Map<number, SharedAnime>();
-    for (const entry of byAmqId.get(song.amqSongId ?? -1) ?? []) {
+    const entries = byAmqId.get(song.amqSongId ?? -1) ?? [];
+    // Identifiant de progression stable : le même quelle que soit l'entrée (l'animé) par laquelle
+    // la musique a été trouvée, donc quelle que soit la liste chargée.
+    song.progressId = Math.min(song.annSongId, ...entries.map((e) => e.annSongId));
+    for (const entry of entries) {
       if (entry.annId === song.annId || shared.has(entry.annId)) continue;
       shared.set(entry.annId, {
         annId: entry.annId,
+        annSongId: entry.annSongId,
         jpName: entry.animeJPName,
         enName: entry.animeENName,
         altNames: entry.animeAltName ?? [],

@@ -11,7 +11,7 @@ export const BOX_INTERVAL_DAYS: Record<Box, number> = { 1: 0, 2: 1, 3: 3, 4: 7, 
 /** Boîte d'une chanson trouvée dès sa découverte. */
 const DISCOVERED_BOX: Box = 3;
 
-/** Progression d'une chanson (`annSongId`), partagée par toutes les listes qui la contiennent. */
+/** Progression d'une chanson (clé : `Song.progressId`), partagée par toutes les listes qui la contiennent. */
 export interface SongProgress {
   /** Nombre de fois jouée. */
   seen: number;
@@ -64,12 +64,12 @@ function getAll(): ProgressMap {
   return progress;
 }
 
-export function getProgress(annSongId: number): SongProgress | undefined {
-  return getAll()[annSongId];
+export function getProgress(progressId: number): SongProgress | undefined {
+  return getAll()[progressId];
 }
 
-export function songState(annSongId: number, now = Date.now()): SongState {
-  const record = getAll()[annSongId];
+export function songState(progressId: number, now = Date.now()): SongState {
+  const record = getAll()[progressId];
   if (!record) return 'unseen';
   if (record.missed) return 'review';
   return Date.parse(record.dueAt) <= now ? 'due' : 'known';
@@ -118,9 +118,9 @@ function persist(): boolean {
  * Écrit aussitôt, pour qu'une partie abandonnée garde les réponses déjà données.
  * Renvoie `false` si la progression n'a pas pu être enregistrée.
  */
-export function recordAnswer(annSongId: number, correct: boolean): boolean {
-  getAll()[annSongId] = nextProgress(getAll()[annSongId], correct);
-  markDirty([annSongId]);
+export function recordAnswer(progressId: number, correct: boolean): boolean {
+  getAll()[progressId] = nextProgress(getAll()[progressId], correct);
+  markDirty([progressId]);
   return persist();
 }
 
@@ -168,6 +168,55 @@ export function mergeProgress(local: SongProgress | undefined, remote: SongProgr
   if (!local || !remote) return local ?? remote;
   const latest = Date.parse(remote.lastSeen) > Date.parse(local.lastSeen) ? remote : local;
   return { ...latest, seen: Math.max(local.seen, remote.seen), correct: Math.max(local.correct, remote.correct) };
+}
+
+/* ---------- Identifiants retirés (musiques partagées, voir `adoptProgressIds`) ---------- */
+
+const RETIRED_KEY = 'amq-trainer:progress-retired:v1';
+
+/** Anciens identifiants de progression, à supprimer du compte (et à ignorer s'ils en reviennent). */
+export function retiredIds(): number[] {
+  try {
+    return JSON.parse(localStorage.getItem(RETIRED_KEY) ?? '[]') as number[];
+  } catch {
+    return [];
+  }
+}
+
+function writeRetired(ids: Iterable<number>): void {
+  try {
+    localStorage.setItem(RETIRED_KEY, JSON.stringify([...new Set(ids)]));
+  } catch {
+    // Au pire, l'ancien identifiant revient du compte et sera de nouveau repris au prochain chargement.
+  }
+}
+
+/** Retire de la liste les identifiants supprimés du compte. */
+export function markRetiredClean(ids: number[]): void {
+  const done = new Set(ids);
+  writeRetired(retiredIds().filter((id) => !done.has(id)));
+}
+
+/**
+ * Reprend la progression enregistrée sous un ancien identifiant d'une musique partagée par
+ * plusieurs animés (`aliases` : ancien → `progressId`), en la fusionnant (`mergeProgress`).
+ * L'ancien identifiant est retiré : supprimé du compte à la prochaine synchronisation.
+ * Renvoie `true` si la progression a changé.
+ */
+export function adoptProgressIds(aliases: Map<number, number>): boolean {
+  const all = getAll();
+  const moved: number[] = [];
+  for (const [oldId, progressId] of aliases) {
+    if (oldId === progressId || !all[oldId]) continue;
+    all[progressId] = mergeProgress(all[progressId], all[oldId])!;
+    delete all[oldId];
+    moved.push(oldId);
+    markDirty([progressId]);
+  }
+  if (!moved.length) return false;
+  writeRetired([...retiredIds(), ...moved]);
+  persist();
+  return true;
 }
 
 /** Remplace la progression locale par la version fusionnée avec le compte. */

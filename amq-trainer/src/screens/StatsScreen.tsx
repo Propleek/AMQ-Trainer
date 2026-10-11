@@ -29,8 +29,8 @@ export default function StatsScreen({ listName, songs, onBack }: Props) {
     let dueThisWeek = 0;
     const missed: { song: Song; misses: number; seen: number }[] = [];
     for (const song of songs) {
-      states[songState(song.annSongId, now)]++;
-      const progress = getProgress(song.annSongId);
+      states[songState(song.progressId, now)]++;
+      const progress = getProgress(song.progressId);
       if (!progress) continue;
       boxes.set(progress.box, (boxes.get(progress.box) ?? 0) + 1);
       const due = Date.parse(progress.dueAt);

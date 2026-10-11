@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import type { Box, SongProgress } from './progress';
-import { dirtyIds, getAllProgress, markClean, mergeProgress, replaceAllProgress } from './progress';
+import { dirtyIds, getAllProgress, markClean, markRetiredClean, mergeProgress, replaceAllProgress, retiredIds } from './progress';
 import type { TestResult } from './testHistory';
 import { loadAll as loadAllTests, replaceAll as replaceAllTests } from './testHistory';
 import type { SavedList } from './savedLists';
@@ -153,6 +153,16 @@ async function syncLists(): Promise<boolean> {
   return localChanged;
 }
 
+/** Supprime du compte les anciens identifiants de progression (voir `adoptProgressIds`). */
+async function deleteRetired(): Promise<void> {
+  const ids = retiredIds();
+  for (let i = 0; i < ids.length; i += 500) {
+    const { error } = await supabase!.from('song_progress').delete().in('ann_song_id', ids.slice(i, i + 500));
+    if (error) throw error;
+  }
+  markRetiredClean(ids);
+}
+
 async function upsertTests(tests: TestResult[]): Promise<void> {
   const rows: TestRow[] = tests.map((t) => ({ list_name: t.listName, played_at: t.playedAt, total: t.total, correct: t.correct }));
   for (let i = 0; i < rows.length; i += PAGE_SIZE) {
@@ -187,7 +197,9 @@ function fullSync(): Promise<void> {
     const dirty = dirtyIds();
     try {
       const remoteRows = await selectAll<ProgressRow>('song_progress', 'ann_song_id,seen,correct,last_seen,missed,box,due_at', 'ann_song_id');
-      const remote = new Map(remoteRows.map((r) => [r.ann_song_id, fromRow(r)]));
+      // Anciens identifiants de musiques partagées (repris sous `progressId`) : ignorés, puis supprimés.
+      const retired = new Set(retiredIds());
+      const remote = new Map(remoteRows.filter((r) => !retired.has(r.ann_song_id)).map((r) => [r.ann_song_id, fromRow(r)]));
       const local = getAllProgress();
 
       const merged: Record<number, SongProgress> = {};
@@ -203,6 +215,7 @@ function fullSync(): Promise<void> {
       const pushed = [...new Set([...toPush, ...dirty])];
       await upsertProgress(pushed);
       markClean(pushed);
+      await deleteRetired();
 
       const remoteTests = (await selectAll<TestRow>('test_results', 'list_name,played_at,total,correct', 'played_at')).map<TestResult>((r) => ({
         listName: r.list_name,
@@ -244,6 +257,7 @@ export function pushChanges(): Promise<void> {
     try {
       await upsertProgress(ids);
       markClean(ids);
+      await deleteRetired();
       await upsertTests(loadAllTests());
       const lists = dirtyListIds();
       await upsertLists(lists);

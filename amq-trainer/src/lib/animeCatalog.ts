@@ -7,7 +7,7 @@ const STORAGE_KEY = 'amq-trainer:anime-catalog:v1';
 export interface CatalogAnime {
   annId: number;
   name: string;
-  /** `annSongId` sous lesquels la progression est enregistrée (une musique partagée garde le même). */
+  /** `progressId` des musiques (une musique partagée a le même dans tous les animés). */
   songIds: number[];
 }
 

@@ -91,14 +91,14 @@ export function filterSongs(songs: Song[], statusOf: Map<number, string[]>, sett
 export function modePool(songs: Song[], settings: Pick<QuizSettings, 'mode' | 'testIncludesUnseen'>): Song[] {
   switch (settings.mode) {
     case 'discovery':
-      return songs.filter((s) => songState(s.annSongId) === 'unseen');
+      return songs.filter((s) => songState(s.progressId) === 'unseen');
     case 'review':
       return songs.filter((s) => {
-        const state = songState(s.annSongId);
+        const state = songState(s.progressId);
         return state === 'review' || state === 'due';
       });
     case 'test':
-      return settings.testIncludesUnseen ? songs : songs.filter((s) => songState(s.annSongId) !== 'unseen');
+      return settings.testIncludesUnseen ? songs : songs.filter((s) => songState(s.progressId) !== 'unseen');
   }
 }
 
@@ -108,10 +108,10 @@ export function modePool(songs: Song[], settings: Pick<QuizSettings, 'mode' | 't
  */
 export function drawForMode(pool: Song[], mode: QuizMode, count: number | null): Song[] {
   if (mode !== 'review' || count === null || count >= pool.length) return drawSongs(pool, count);
-  const missed = shuffle(pool.filter((s) => songState(s.annSongId) === 'review'));
+  const missed = shuffle(pool.filter((s) => songState(s.progressId) === 'review'));
   const due = pool
-    .filter((s) => songState(s.annSongId) === 'due')
-    .sort((a, b) => (getProgress(a.annSongId)?.dueAt ?? '').localeCompare(getProgress(b.annSongId)?.dueAt ?? ''));
+    .filter((s) => songState(s.progressId) === 'due')
+    .sort((a, b) => (getProgress(a.progressId)?.dueAt ?? '').localeCompare(getProgress(b.progressId)?.dueAt ?? ''));
   return shuffle([...missed, ...due].slice(0, count));
 }
 

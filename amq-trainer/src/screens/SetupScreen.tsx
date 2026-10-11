@@ -75,7 +75,7 @@ export default function SetupScreen({ list, loaded, onLoaded, onBack, onStart, o
   const filtered = useMemo(() => (loaded ? filterSongs(loaded.songs, loaded.statusOf, settings) : []), [loaded, settings]);
   const stateCounts = useMemo(() => {
     const counts: Record<SongState, number> = { unseen: 0, review: 0, due: 0, known: 0 };
-    for (const song of filtered) counts[songState(song.annSongId)]++;
+    for (const song of filtered) counts[songState(song.progressId)]++;
     return counts;
   }, [filtered]);
   const modeCounts: Record<QuizMode, number> = {

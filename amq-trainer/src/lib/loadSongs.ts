@@ -3,6 +3,7 @@ import { animeKey, fetchAnimeInfo } from './anilist';
 import { fetchSongs } from './anisongdb';
 import type { SongQuery } from './anisongdb';
 import { updateCatalog } from './animeCatalog';
+import { adoptProgressIds } from './progress';
 import type { CatalogAnime } from './animeCatalog';
 
 export interface LoadProgress {
@@ -58,13 +59,21 @@ export async function loadSongs(
       const key = songKey(song);
       statuses.set(key, (statuses.get(key) ?? new Set()).add(entry.status));
       const kept = songs.get(key);
-      // Doublon : on garde l'entrée au plus petit annSongId, stable d'un chargement à l'autre
-      // (la progression est enregistrée sous cet identifiant).
+      // Doublon : on garde l'entrée au plus petit annSongId (la progression, elle, est enregistrée
+      // sous `progressId`, identique pour toutes les entrées de la musique).
       if (!kept || song.annSongId < kept.annSongId) songs.set(key, song);
     }
   }
   const statusOf = new Map<number, string[]>();
   for (const [key, song] of songs) statusOf.set(song.annSongId, [...statuses.get(key)!]);
+
+  // Musiques partagées : la progression enregistrée sous une autre entrée (ancienne règle, ou autre
+  // liste) est reprise sous `progressId`, pour qu'une musique connue le soit dans toutes les listes.
+  const aliases = new Map<number, number>();
+  for (const song of songs.values()) {
+    for (const id of [song.annSongId, ...song.sharedAnime.map((a) => a.annSongId)]) aliases.set(id, song.progressId);
+  }
+  adoptProgressIds(aliases);
 
   // Catalogue animé → musiques, pour le tableau de bord du compte (animés maîtrisés).
   const catalog: CatalogAnime[] = [];
@@ -74,7 +83,7 @@ export async function loadSongs(
     catalog.push({
       annId: found[0].annId,
       name: found[0].anime.jpName,
-      songIds: [...new Set(found.map((song) => songs.get(songKey(song))!.annSongId))],
+      songIds: [...new Set(found.map((song) => song.progressId))],
     });
   }
   updateCatalog(catalog);

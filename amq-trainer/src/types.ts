@@ -32,6 +32,8 @@ export function songTypeLabel(song: Pick<Song, 'kind' | 'number'>): string {
 /** Autre animé qui utilise la même musique (même `amqSongId`) : sa réponse est aussi acceptée. */
 export interface SharedAnime {
   annId: number;
+  /** Entrée AnisongDB de la musique dans cet animé. */
+  annSongId: number;
   jpName: string;
   enName: string;
   altNames: string[];
@@ -42,6 +44,11 @@ export interface SharedAnime {
 /** Chanson jouable dans le quiz. */
 export interface Song {
   annSongId: number;
+  /**
+   * Identifiant sous lequel la progression est enregistrée : le plus petit `annSongId` de toutes les
+   * entrées de cette musique (tous animés confondus). Identique quelle que soit la liste chargée.
+   */
+  progressId: number;
   /** Identifiant AMQ de la musique, commun à tous les animés qui l'utilisent. */
   amqSongId: number | null;
   /** Autres animés qui utilisent cette musique : impossibles à distinguer, donc acceptés aussi. */

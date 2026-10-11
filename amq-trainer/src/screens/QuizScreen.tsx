@@ -210,7 +210,7 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
       answered.current = true;
       const song = songs[index];
       const correct = isCorrect(answer, song);
-      if (!recordAnswer(song.annSongId, correct)) setSaveFailed(true);
+      if (!recordAnswer(song.progressId, correct)) setSaveFailed(true);
       setAnswers((a) => [...a, { song, answer: answer.trim(), correct, unavailable: false }]);
       setPhase('reveal');
       startReveal(false);
