@@ -54,6 +54,8 @@ export interface Song {
   name: string;
   artist: string;
   audioUrl: string;
+  /** Vidéo de l'extrait (480p, sinon 720p), montrée à la révélation ; `null` si absente. */
+  videoUrl: string | null;
   /** Durée de l'extrait en secondes, si connue. */
   length: number | null;
   /** Difficulté AnisongDB (0 = très difficile, 100 = très facile), si connue. */

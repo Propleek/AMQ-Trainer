@@ -10,7 +10,7 @@ const MAX_IDS_PER_REQUEST = 500;
 // AnisongDB limite le débit (réponse 429 sans en-tête CORS, vue comme une erreur réseau).
 const DELAY_BETWEEN_SEARCHES_MS = 500;
 /** Version du cache : à incrémenter quand la logique de recherche ou la forme de `Song` change. */
-const CACHE_PREFIX = 'anisongdb:v2:';
+const CACHE_PREFIX = 'anisongdb:v3:';
 /** Un résultat vide est revérifié plus tôt : AnisongDB ajoute régulièrement des chansons. */
 const EMPTY_TTL_MS = DAY_MS;
 
@@ -76,6 +76,8 @@ function toKind(songType: string): SongKind | null {
 function toSong(entry: SongEntry): Song | null {
   // Les animés récents n'ont parfois que la vidéo : <audio> sait en lire la piste son (streaming).
   const file = entry.audio ?? entry.MQ ?? entry.HQ;
+  // Vidéo de la révélation : 480p (plus légère), sinon 720p.
+  const video = entry.MQ ?? entry.HQ;
   const kind = toKind(entry.songType);
   if (!file || !kind) return null;
   return {
@@ -88,6 +90,7 @@ function toSong(entry: SongEntry): Song | null {
     name: entry.songName,
     artist: entry.songArtist,
     audioUrl: AUDIO_BASE_URL + file,
+    videoUrl: video ? AUDIO_BASE_URL + video : null,
     length: entry.songLength,
     difficulty: entry.songDifficulty,
     anime: {

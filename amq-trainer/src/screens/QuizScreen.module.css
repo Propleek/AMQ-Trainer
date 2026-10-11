@@ -68,6 +68,24 @@
   background: var(--accent);
 }
 
+.hidden {
+  display: none;
+}
+
+/* Vidéo de la révélation, au format de l'extrait. */
+.videoHost {
+  width: 100%;
+}
+
+.videoHost video {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #000;
+}
+
 .reveal {
   display: flex;
   gap: 1.25rem;

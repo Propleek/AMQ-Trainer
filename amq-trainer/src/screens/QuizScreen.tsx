@@ -4,13 +4,13 @@ import { songTypeLabel } from '../types';
 import type { QuizStart } from './SetupScreen';
 import { isCorrect } from '../lib/answer';
 import { buildAutocompleteNames, fetchAnimeNames } from '../lib/animeNames';
-import { disposeTrack, loadVolume, prepareTrack, saveVolume } from '../lib/quizAudio';
+import { disposeMedia, disposeTrack, loadVolume, prepareRevealVideo, prepareTrack, saveVolume } from '../lib/quizAudio';
 import { recordAnswer } from '../lib/progress';
 import { addTestResult } from '../lib/testHistory';
 import { pushChanges } from '../lib/sync';
 import { MODE_LABELS } from '../lib/quizSettings';
 import type { QuizMode } from '../lib/quizSettings';
-import type { Track } from '../lib/quizAudio';
+import type { RevealVideo, Track } from '../lib/quizAudio';
 import AnswerInput from '../components/AnswerInput';
 import PlayerCard from '../components/PlayerCard';
 import QuizResults from '../components/QuizResults';
@@ -30,6 +30,12 @@ export interface QuizAnswer {
  * guess : temps de réponse · reveal : révélation · done : fin de partie.
  */
 type Phase = 'loading' | 'blocked' | 'guess' | 'reveal' | 'done';
+
+/** Média de la révélation : vidéo du passage, sinon l'extrait rejoué en audio (avec la couverture). */
+type RevealMedia = 'loading' | 'video' | 'audio' | 'none';
+
+/** Attente maximale de la vidéo à la révélation, avant de rejouer l'extrait en audio. */
+const VIDEO_WAIT_MS = 4000;
 
 interface Props {
   start: QuizStart;
@@ -57,9 +63,15 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
   const [volume, setVolume] = useState(loadVolume);
   const [names, setNames] = useState(() => buildAutocompleteNames([], listSongs));
   const [saveFailed, setSaveFailed] = useState(false);
+  const [revealMedia, setRevealMedia] = useState<RevealMedia>('loading');
+  /** Fin de la révélation (passage automatique à la musique suivante) ; 0 tant qu'elle n'a pas démarré. */
+  const [revealDeadline, setRevealDeadline] = useState(0);
 
   const currentTrack = useRef<Track | null>(null);
   const nextTrack = useRef<Track | null>(null);
+  const revealVideo = useRef<RevealVideo | null>(null);
+  /** Emplacement de la vidéo, toujours présent (masqué hors révélation) pour l'y insérer à tout moment. */
+  const videoHost = useRef<HTMLDivElement>(null);
   const volumeRef = useRef(volume);
   const inputRef = useRef<HTMLInputElement>(null);
   /** Réponse validée avec Entrée (modifiable jusqu'à la fin du temps), affichée dans la bulle. */
@@ -88,6 +100,57 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
     setPhase('guess');
   }, [settings.guessTime]);
 
+  /**
+   * Révélation à la manière d'AMQ : le son s'arrête et le même passage est rejoué en vidéo (ou en
+   * audio à défaut), pendant la durée de la manche ; ensuite, musique suivante automatiquement.
+   */
+  const startReveal = useCallback(
+    (unavailable: boolean) => {
+      const track = currentTrack.current;
+      const reveal = revealVideo.current;
+      const startCountdown = () => {
+        const t = performance.now();
+        setNow(t);
+        setRevealDeadline(t + settings.guessTime * 1000);
+      };
+      track?.audio.pause();
+      setRevealDeadline(0);
+      if (unavailable || !track) {
+        setRevealMedia('none');
+        startCountdown();
+        return;
+      }
+      const replayAudio = () => {
+        if (currentTrack.current !== track) return;
+        track.audio.currentTime = track.startAt;
+        void track.audio.play().catch(() => {});
+        setRevealMedia('audio');
+        startCountdown();
+      };
+      if (!reveal) {
+        replayAudio();
+        return;
+      }
+      setRevealMedia('loading');
+      const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Vidéo trop lente')), VIDEO_WAIT_MS));
+      Promise.race([reveal.ready, timeout])
+        .then(async () => {
+          if (revealVideo.current !== reveal) return;
+          reveal.video.volume = volumeRef.current;
+          videoHost.current?.appendChild(reveal.video);
+          await reveal.video.play();
+          setRevealMedia('video');
+          startCountdown();
+        })
+        .catch(() => {
+          if (revealVideo.current !== reveal) return;
+          disposeMedia(reveal.video);
+          replayAudio();
+        });
+    },
+    [settings.guessTime],
+  );
+
   // Chargement et lecture de la chanson en cours, puis préchargement de la suivante.
   useEffect(() => {
     if (index >= songs.length) return;
@@ -110,6 +173,8 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
           () => !cancelled && beginGuess(),
           () => !cancelled && setPhase('blocked'),
         );
+        // Vidéo de la révélation, calée sur le passage qui vient de démarrer.
+        if (song.videoUrl) revealVideo.current = prepareRevealVideo(song.videoUrl, track.startAt);
         if (index + 1 < songs.length) {
           nextTrack.current = prepareTrack(songs[index + 1], settings.samplePoint, settings.guessTime);
         }
@@ -118,14 +183,17 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
         if (cancelled) return;
         setAnswers((a) => [...a, { song, answer: '', correct: false, unavailable: true }]);
         setPhase('reveal');
+        startReveal(true);
       },
     );
     return () => {
       cancelled = true;
       disposeTrack(track);
       currentTrack.current = null;
+      if (revealVideo.current) disposeMedia(revealVideo.current.video);
+      revealVideo.current = null;
     };
-  }, [index, songs, covers, settings.samplePoint, settings.guessTime, beginGuess]);
+  }, [index, songs, covers, settings.samplePoint, settings.guessTime, beginGuess, startReveal]);
 
   // Libère la musique préchargée en quittant l'écran.
   useEffect(
@@ -145,8 +213,9 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
       if (!recordAnswer(song.annSongId, correct)) setSaveFailed(true);
       setAnswers((a) => [...a, { song, answer: answer.trim(), correct, unavailable: false }]);
       setPhase('reveal');
+      startReveal(false);
     },
-    [songs, index],
+    [songs, index, startReveal],
   );
 
 
@@ -194,6 +263,17 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
     setIndex(index + 1);
   }, [index, songs.length, settings.mode, answers, listName]);
 
+  // Révélation : passage automatique à la musique suivante une fois le passage rejoué.
+  useEffect(() => {
+    if (phase !== 'reveal' || !revealDeadline) return;
+    const timer = setInterval(() => {
+      const t = performance.now();
+      setNow(t);
+      if (t >= revealDeadline) next();
+    }, 100);
+    return () => clearInterval(timer);
+  }, [phase, revealDeadline, next]);
+
   // Fin de partie : envoi des réponses au compte (sans compte, rien n'est envoyé).
   useEffect(() => {
     if (phase === 'done') void pushChanges();
@@ -228,6 +308,7 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
     setVolume(value);
     volumeRef.current = value;
     if (currentTrack.current) currentTrack.current.audio.volume = value;
+    if (revealVideo.current) revealVideo.current.video.volume = value;
     saveVolume(value);
   }
 
@@ -252,6 +333,10 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
   const song = songs[index];
   const answer = phase === 'reveal' ? answers[answers.length - 1] : null;
   const remaining = Math.max(0, deadline - now);
+  const showVideo = phase === 'reveal' && revealMedia === 'video';
+  // Révélation : temps restant avant la musique suivante (barre pleine tant que la lecture n'a pas démarré).
+  const revealRemaining = revealDeadline ? Math.max(0, revealDeadline - now) : settings.guessTime * 1000;
+  const revealRatio = revealRemaining / (settings.guessTime * 1000);
   const score = answers.filter((a) => a.correct).length;
   const played = answers.filter((a) => !a.unavailable).length;
   const cover = covers.get(song.annId);
@@ -282,6 +367,7 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
       </div>
 
       <div className={`panel ${styles.stage}`}>
+        <div ref={videoHost} className={showVideo ? styles.videoHost : styles.hidden} />
         {phase === 'loading' && <p className={styles.status}>Chargement de la musique…</p>}
         {phase === 'blocked' && (
           <button
@@ -304,7 +390,7 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
         )}
         {phase === 'reveal' && answer && (
           <div className={styles.reveal}>
-            {cover ? <img src={cover} alt="" className={styles.cover} /> : <div className={styles.cover} />}
+            {!showVideo && (cover ? <img src={cover} alt="" className={styles.cover} /> : <div className={styles.cover} />)}
             <div className={styles.revealInfo}>
               <p className={answer.unavailable ? styles.unavailable : answer.correct ? styles.correct : styles.wrong}>
                 {answer.unavailable ? 'Musique indisponible (non comptée)' : answer.correct ? '✔ Bonne réponse' : '✘ Raté'}
@@ -330,7 +416,13 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
                   .filter(Boolean)
                   .join(' · ')}
               </p>
+              {revealMedia === 'loading' && <p className="muted">Chargement de la vidéo…</p>}
             </div>
+          </div>
+        )}
+        {phase === 'reveal' && (
+          <div className={styles.bar} aria-hidden="true">
+            <div className={styles.fill} style={{ width: `${revealRatio * 100}%` }} />
           </div>
         )}
       </div>
@@ -347,7 +439,8 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
 
       {phase === 'reveal' ? (
         <button type="button" className={`primary ${styles.next}`} onClick={next}>
-          {index + 1 >= songs.length ? 'Voir les résultats' : 'Suivant'} <span className={styles.key}>Entrée</span>
+          {index + 1 >= songs.length ? 'Voir les résultats' : 'Suivant'}
+          {revealDeadline > 0 && ` (${Math.ceil(revealRemaining / 1000)} s)`} <span className={styles.key}>Entrée</span>
         </button>
       ) : (
         <>
