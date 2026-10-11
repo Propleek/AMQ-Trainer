@@ -2,6 +2,8 @@ import type { AnimeEntry, Song } from '../types';
 import { animeKey, fetchAnimeInfo } from './anilist';
 import { fetchSongs } from './anisongdb';
 import type { SongQuery } from './anisongdb';
+import { updateCatalog } from './animeCatalog';
+import type { CatalogAnime } from './animeCatalog';
 
 export interface LoadProgress {
   step: 'anime' | 'songs';
@@ -22,6 +24,9 @@ export interface LoadResult {
   /** Titres des animés sans chanson trouvée. */
   withoutSongs: string[];
 }
+
+/** Clé d'une musique : une même musique utilisée par plusieurs animés n'est jouée qu'une fois. */
+const songKey = (song: Song) => (song.amqSongId !== null ? `amq-${song.amqSongId}` : `ann-${song.annSongId}`);
 
 /** Chansons des animés d'une liste : infos AniList (ID MAL, année, format), puis AnisongDB. */
 export async function loadSongs(
@@ -50,7 +55,7 @@ export async function loadSongs(
     const cover = infos.get(animeKey(entry))?.imageUrl;
     if (cover) for (const song of found) covers.set(song.annId, cover);
     for (const song of found) {
-      const key = song.amqSongId !== null ? `amq-${song.amqSongId}` : `ann-${song.annSongId}`;
+      const key = songKey(song);
       statuses.set(key, (statuses.get(key) ?? new Set()).add(entry.status));
       const kept = songs.get(key);
       // Doublon : on garde l'entrée au plus petit annSongId, stable d'un chargement à l'autre
@@ -60,5 +65,19 @@ export async function loadSongs(
   }
   const statusOf = new Map<number, string[]>();
   for (const [key, song] of songs) statusOf.set(song.annSongId, [...statuses.get(key)!]);
+
+  // Catalogue animé → musiques, pour le tableau de bord du compte (animés maîtrisés).
+  const catalog: CatalogAnime[] = [];
+  for (const entry of entries) {
+    const found = songsByKey.get(animeKey(entry)) ?? [];
+    if (!found.length) continue;
+    catalog.push({
+      annId: found[0].annId,
+      name: found[0].anime.jpName,
+      songIds: [...new Set(found.map((song) => songs.get(songKey(song))!.annSongId))],
+    });
+  }
+  updateCatalog(catalog);
+
   return { songs: [...songs.values()], covers, statusOf, withoutSongs };
 }

@@ -20,9 +20,11 @@ export interface AccountState {
   status: SyncStatus;
   /** Incrémenté quand la fusion modifie les données locales : les écrans recalculent leurs chiffres. */
   revision: number;
+  /** Date de la dernière synchronisation réussie (cette session). */
+  lastSyncedAt: Date | null;
 }
 
-let state: AccountState = { available: !!supabase, user: null, status: 'signed-out', revision: 0 };
+let state: AccountState = { available: !!supabase, user: null, status: 'signed-out', revision: 0, lastSyncedAt: null };
 const listeners = new Set<() => void>();
 
 function setState(changes: Partial<AccountState>) {
@@ -217,7 +219,11 @@ function fullSync(): Promise<void> {
 
       const listsChanged = await syncLists();
 
-      setState({ status: 'synced', revision: state.revision + (localChanged || missingLocally.length || listsChanged ? 1 : 0) });
+      setState({
+        status: 'synced',
+        lastSyncedAt: new Date(),
+        revision: state.revision + (localChanged || missingLocally.length || listsChanged ? 1 : 0),
+      });
     } catch (e) {
       console.error('Synchronisation impossible', e);
       setState({ status: 'error' });
@@ -242,7 +248,7 @@ export function pushChanges(): Promise<void> {
       const lists = dirtyListIds();
       await upsertLists(lists);
       markListsClean(lists);
-      setState({ status: 'synced' });
+      setState({ status: 'synced', lastSyncedAt: new Date() });
     } catch (e) {
       console.error('Synchronisation impossible', e);
       setState({ status: 'error' });
@@ -250,7 +256,7 @@ export function pushChanges(): Promise<void> {
   });
 }
 
-/** Nouvel essai après une erreur. */
+/** Synchronisation complète à la demande (bouton « Synchroniser maintenant », nouvel essai après une erreur). */
 export const retrySync = () => (state.user ? fullSync() : Promise.resolve());
 
 /** Métadonnées fournies par Supabase pour un compte Discord. */
@@ -291,7 +297,7 @@ export async function signOut(): Promise<void> {
 // Session existante au chargement, retour de Discord (jeton dans l'URL), connexion, déconnexion.
 supabase?.auth.onAuthStateChange((event, session) => {
   if (!session?.user) {
-    setState({ user: null, status: 'signed-out' });
+    setState({ user: null, status: 'signed-out', lastSyncedAt: null });
     return;
   }
   const firstSignal = !state.user;

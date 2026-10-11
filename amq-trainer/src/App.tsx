@@ -12,6 +12,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import CrashPanel from './components/CrashPanel';
 import { useAccount } from './lib/sync';
 import StatsScreen from './screens/StatsScreen';
+import AccountScreen from './screens/AccountScreen';
 import { drawForMode, filterSongs, modePool, shuffle } from './lib/quizSettings';
 
 type Screen =
@@ -19,7 +20,9 @@ type Screen =
   | { name: 'list-editor'; list: SavedList | null }
   | { name: 'setup' }
   | { name: 'stats' }
-  | { name: 'quiz'; id: number; start: QuizStart };
+  | { name: 'quiz'; id: number; start: QuizStart }
+  /** Tableau de bord du compte ; `back` : écran où revenir. */
+  | { name: 'account'; back: Screen };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'import' });
@@ -45,6 +48,16 @@ export default function App() {
     setScreen({ name: 'import' });
   }
 
+  /** Tableau de bord du compte (clic sur l'avatar, le nom ou la pastille de synchronisation). */
+  function openAccount() {
+    if (screen.name === 'account') return;
+    if (screen.name === 'quiz' && !window.confirm('Quitter la partie en cours ? Les réponses déjà données sont enregistrées.')) return;
+    if (screen.name === 'list-editor' && !window.confirm("Quitter l'éditeur ? Les modifications non enregistrées seront perdues.")) return;
+    // Une partie ou l'éditeur ne se reprennent pas : retour à la configuration, ou à l'accueil.
+    const back: Screen = screen.name === 'quiz' ? { name: 'setup' } : screen.name === 'list-editor' ? { name: 'import' } : screen;
+    setScreen({ name: 'account', back });
+  }
+
   return (
     <main className="app">
       <header className="app-header">
@@ -58,7 +71,7 @@ export default function App() {
             ← Changer de liste
           </button>
         )}
-        <AccountBar />
+        <AccountBar onOpenAccount={openAccount} />
       </header>
       <ErrorBoundary
         fallback={(error, reset) => (
@@ -105,6 +118,7 @@ export default function App() {
             onStats={() => setScreen({ name: 'stats' })}
           />
         )}
+        {screen.name === 'account' && <AccountScreen onBack={() => setScreen(screen.back)} />}
         {screen.name === 'stats' && loaded && (
           <StatsScreen key={account.revision} listName={loaded.list.userName} songs={loaded.result.songs} onBack={() => setScreen({ name: 'setup' })} />
         )}

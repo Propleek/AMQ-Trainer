@@ -21,25 +21,29 @@
   border-color: #fff;
 }
 
+/* Avatar + nom : ouvre le tableau de bord du compte. */
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0.6rem 0.2rem 0.2rem;
+  border-radius: 999px;
+}
+
+.profile strong {
+  overflow-wrap: anywhere;
+}
+
 .avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
 }
 
-.identity {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.25;
-}
-
-.identity strong {
-  overflow-wrap: anywhere;
-}
-
 .status {
   display: flex;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
   align-items: center;
   gap: 0.4rem;
   font-size: 0.8rem;
@@ -64,9 +68,4 @@
 
 .error::before {
   background: var(--danger);
-}
-
-.retry {
-  padding: 0 0.4em;
-  font-size: 0.8rem;
 }
