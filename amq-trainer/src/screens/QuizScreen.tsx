@@ -366,7 +366,7 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
         </button>
       </div>
 
-      <div className={`panel ${styles.stage}`}>
+      <div className={`panel ${styles.stage} ${showVideo ? styles.stageVideo : ''}`}>
         <div ref={videoHost} className={showVideo ? styles.videoHost : styles.hidden} />
         {phase === 'loading' && <p className={styles.status}>Chargement de la musique…</p>}
         {phase === 'blocked' && (
@@ -417,6 +417,10 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
                   .join(' · ')}
               </p>
               {revealMedia === 'loading' && <p className="muted">Chargement de la vidéo…</p>}
+              <button type="button" className={`primary ${styles.next}`} onClick={next}>
+                {index + 1 >= songs.length ? 'Voir les résultats' : 'Suivant'}
+                {revealDeadline > 0 && ` (${Math.ceil(revealRemaining / 1000)} s)`} <span className={styles.key}>Entrée</span>
+              </button>
             </div>
           </div>
         )}
@@ -437,12 +441,7 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
         Score : {score} / {played}
       </p>
 
-      {phase === 'reveal' ? (
-        <button type="button" className={`primary ${styles.next}`} onClick={next}>
-          {index + 1 >= songs.length ? 'Voir les résultats' : 'Suivant'}
-          {revealDeadline > 0 && ` (${Math.ceil(revealRemaining / 1000)} s)`} <span className={styles.key}>Entrée</span>
-        </button>
-      ) : (
+      {phase !== 'reveal' && (
         <>
           <div className={styles.answerRow}>
             <AnswerInput
@@ -463,7 +462,8 @@ export default function QuizScreen({ start, listName, listSongs, covers, onQuit,
             </button>
           </div>
           <p className={`muted ${styles.hint}`}>
-            <span className={styles.key}>Entrée</span> valider (modifiable jusqu'à la fin du temps) ·{' '}
+            <span className={styles.key}>Tab</span> compléter · <span className={styles.key}>Entrée</span> valider (modifiable
+            jusqu'à la fin du temps) ·{' '}
             <span className={styles.key}>Ctrl</span> + <span className={styles.key}>Entrée</span> passer
           </p>
         </>

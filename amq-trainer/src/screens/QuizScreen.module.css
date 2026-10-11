@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-width: 760px;
+  max-width: 900px;
   margin: 0 auto;
 }
 
@@ -144,9 +144,22 @@
   color: var(--text-muted);
 }
 
+/* Sous les informations de la révélation : visible sans faire défiler la page. */
 .next {
-  align-self: flex-end;
+  align-self: flex-start;
+  margin-top: 0.75rem !important;
   padding: 0.6em 1.2em;
+}
+
+/* Révélation avec vidéo : vidéo à gauche, informations à droite, barre de temps en dessous. */
+.stageVideo {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: start;
+}
+
+.stageVideo > .bar {
+  grid-column: 1 / -1;
 }
 
 .key {
@@ -199,5 +212,9 @@
 
   .next {
     align-self: stretch;
+  }
+
+  .stageVideo {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

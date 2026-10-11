@@ -66,7 +66,15 @@ const AnswerInput = forwardRef<HTMLInputElement, Props>(function AnswerInput({ v
       const chosen = visible && highlighted >= 0 ? suggestions[highlighted] : value;
       setOpen(false);
       setHighlighted(-1);
+      // Le champ prend le nom choisi : un nouvel Entrée revalide ce nom, pas le texte partiel.
+      if (chosen !== value) onChange(chosen);
       onSubmit(chosen);
+    } else if (e.key === 'Tab' && visible) {
+      // Tab complète le champ avec la proposition surlignée (ou la première), sans valider.
+      e.preventDefault();
+      onChange(suggestions[Math.max(0, highlighted)]);
+      setOpen(false);
+      setHighlighted(-1);
     } else if (e.key === 'Escape') {
       setOpen(false);
       setHighlighted(-1);
